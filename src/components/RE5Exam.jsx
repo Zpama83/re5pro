@@ -846,7 +846,7 @@ export default function RE5Exam() {
             <span className="rcp-headline" style={{ fontSize: 22, fontWeight: 700, color: "#e9c176", letterSpacing: -0.3 }}>RE5 Certify Pro</span>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <a href="https://skonlineacademy.thinkific.com/products/courses/ai-placeholder" target="_blank" rel="noopener noreferrer" style={{ background: "#e9c176", color: "#412d00", padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(233,193,118,0.15)" }}>🎓 RE5 Full Course</a>
+            <Link to="/course" style={{ background: "#e9c176", color: "#412d00", padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(233,193,118,0.15)" }}>🎓 RE5 Task 4 Course</Link>
             {mode !== "home" && <button onClick={() => { setMode("home"); setTimerActive(false); }} style={{ background: "transparent", border: "1px solid #45464d", color: "#c6c6cd", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>← Home</button>}
             {mode === "exam" && <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(233,193,118,0.3)", borderRadius: 8, padding: "6px 16px", fontFamily: "monospace", fontSize: 16, color: timeLeft < 300 ? "#ffb4ab" : "#e9c176" }}>⏱ {mins}:{secs.toString().padStart(2, "0")}</div>}
           </div>

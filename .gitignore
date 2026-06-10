@@ -28,3 +28,6 @@ dist-ssr
 .env.*
 !.env.example
 env
+
+# Local Claude Code config (per-machine dev-server config, not source)
+.claude/

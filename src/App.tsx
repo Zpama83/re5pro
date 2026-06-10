@@ -16,35 +16,42 @@ import RE1MockExamPage from "./pages/re1/RE1MockExamPage";
 import RE1ResultsPage from "./pages/re1/RE1ResultsPage";
 import RE1StudyGuidePage from "./pages/re1/RE1StudyGuidePage";
 import { RE1Guard } from "./components/re1/RE1Guard";
+import { ClaudeAuthProvider, ClaudeAuthGate } from "./ClaudeAuth";
+import CoursePage from "./pages/CoursePage";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/study-guide" element={<StudyGuidePage />} />
-          <Route path="/deeper-knowledge" element={<DeeperKnowledge />} />
-          <Route path="/deeper-knowledge/:slug" element={<DeeperKnowledge />} />
-          <Route path="/privacy" element={<Privacy />} />
+  <ClaudeAuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ClaudeAuthGate>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/course" element={<CoursePage />} />
+              <Route path="/study-guide" element={<StudyGuidePage />} />
+              <Route path="/deeper-knowledge" element={<DeeperKnowledge />} />
+              <Route path="/deeper-knowledge/:slug" element={<DeeperKnowledge />} />
+              <Route path="/privacy" element={<Privacy />} />
 
-          {/* RE1 Routes */}
-          <Route path="/re1" element={<RE1Guard><RE1LandingPage /></RE1Guard>} />
-          <Route path="/re1/practice" element={<RE1Guard><RE1PracticePage /></RE1Guard>} />
-          <Route path="/re1/mock-exam" element={<RE1Guard><RE1MockExamPage /></RE1Guard>} />
-          <Route path="/re1/mock-exam/results" element={<RE1Guard><RE1ResultsPage /></RE1Guard>} />
-          <Route path="/re1/study-guide" element={<RE1Guard><RE1StudyGuidePage /></RE1Guard>} />
+              {/* RE1 Routes */}
+              <Route path="/re1" element={<RE1Guard><RE1LandingPage /></RE1Guard>} />
+              <Route path="/re1/practice" element={<RE1Guard><RE1PracticePage /></RE1Guard>} />
+              <Route path="/re1/mock-exam" element={<RE1Guard><RE1MockExamPage /></RE1Guard>} />
+              <Route path="/re1/mock-exam/results" element={<RE1Guard><RE1ResultsPage /></RE1Guard>} />
+              <Route path="/re1/study-guide" element={<RE1Guard><RE1StudyGuidePage /></RE1Guard>} />
 
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ClaudeAuthGate>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ClaudeAuthProvider>
 );
 
 export default App;
