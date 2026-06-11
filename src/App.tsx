@@ -16,6 +16,7 @@ import RE1MockExamPage from "./pages/re1/RE1MockExamPage";
 import RE1ResultsPage from "./pages/re1/RE1ResultsPage";
 import RE1StudyGuidePage from "./pages/re1/RE1StudyGuidePage";
 import RE1CoursePage from "./pages/RE1CoursePage";
+import CPDCalculatorPage from "./pages/CPDCalculatorPage";
 import { RE1Guard } from "./components/re1/RE1Guard";
 import { ClaudeAuthProvider, ClaudeAuthGate } from "./ClaudeAuth";
 import CoursePage from "./pages/CoursePage";
@@ -35,6 +36,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/course" element={<CoursePage />} />
+              <Route path="/cpd-calculator" element={<CPDCalculatorPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/study-guide" element={<StudyGuidePage />} />
               <Route path="/deeper-knowledge" element={<DeeperKnowledge />} />
