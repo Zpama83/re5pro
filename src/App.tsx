@@ -15,6 +15,7 @@ import RE1PracticePage from "./pages/re1/RE1PracticePage";
 import RE1MockExamPage from "./pages/re1/RE1MockExamPage";
 import RE1ResultsPage from "./pages/re1/RE1ResultsPage";
 import RE1StudyGuidePage from "./pages/re1/RE1StudyGuidePage";
+import RE1CoursePage from "./pages/RE1CoursePage";
 import { RE1Guard } from "./components/re1/RE1Guard";
 import { ClaudeAuthProvider, ClaudeAuthGate } from "./ClaudeAuth";
 import CoursePage from "./pages/CoursePage";
@@ -42,6 +43,7 @@ const App = () => (
 
               {/* RE1 Routes */}
               <Route path="/re1" element={<RE1Guard><RE1LandingPage /></RE1Guard>} />
+              <Route path="/re1/course" element={<RE1Guard><RE1CoursePage /></RE1Guard>} />
               <Route path="/re1/practice" element={<RE1Guard><RE1PracticePage /></RE1Guard>} />
               <Route path="/re1/mock-exam" element={<RE1Guard><RE1MockExamPage /></RE1Guard>} />
               <Route path="/re1/mock-exam/results" element={<RE1Guard><RE1ResultsPage /></RE1Guard>} />

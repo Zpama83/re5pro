@@ -84,6 +84,12 @@ const RE1LandingPage = () => {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8 border-t border-slate-200 dark:border-slate-800">
           <Link
+            to="/re1/course"
+            className="px-8 py-4 bg-[#D4A017] text-[#412d00] rounded-xl font-bold text-center hover:bg-[#D4A017]/90 transition-all shadow-sm shadow-[#D4A017]/20"
+          >
+            📘 16-Task Course Lessons
+          </Link>
+          <Link
             to="/re1/practice"
             className="px-8 py-4 bg-white dark:bg-slate-900 border-2 border-[#1B3A6B] dark:border-slate-700 text-[#1B3A6B] dark:text-white rounded-xl font-bold text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
           >
