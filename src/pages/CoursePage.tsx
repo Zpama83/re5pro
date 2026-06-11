@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LessonBlock } from "@/components/course/LessonBlock";
 import { re5Task4Lessons } from "@/data/re5Task4";
 import { re5SupplementaryLessons } from "@/data/re5Supplementary";
+import { re5OtherTaskLessons } from "@/data/re5OtherTasks";
 
 /**
  * RE5 Course page — Task 4 lesson series.
@@ -13,7 +14,10 @@ import { re5SupplementaryLessons } from "@/data/re5Supplementary";
  * via the player's built-in control) with an interactive 5-question quiz beneath.
  */
 const CoursePage = () => {
-  const totalLessons = re5Task4Lessons.length + re5SupplementaryLessons.length;
+  const totalLessons =
+    re5Task4Lessons.length +
+    re5OtherTaskLessons.length +
+    re5SupplementaryLessons.length;
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
@@ -28,12 +32,13 @@ const CoursePage = () => {
             Adhere to the Specific Codes of Conduct
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Fourteen short video lessons covering Qualifying Criteria QC1–QC14
-            from the FSCA Task 4 syllabus, plus four supplementary deep-dive
-            videos covering FAIS Code refreshers, CPD calculations,
-            high-frequency exam concepts, and exam tactics. Each video is
-            followed by a five-question knowledge check distributed across
-            Knowledge, Comprehension, Application and Analysis levels —
+            Three layers of preparation: a deep dive on Task 4 (Specific Codes
+            of Conduct) across all 14 Qualifying Criteria, syllabus-coverage
+            lessons for the other seven RE5 tasks (Tasks 1, 2, 3, 5, 6, 7, 8),
+            and four supplementary videos covering FAIS Code refreshers, CPD
+            calculations, high-frequency exam concepts, and exam tactics. Every
+            lesson is followed by a five-question knowledge check distributed
+            across Knowledge, Comprehension, Application and Analysis levels —
             modelled on the structure of the live RE5 examination.
           </p>
           <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-xs leading-relaxed text-amber-100">
@@ -53,7 +58,11 @@ const CoursePage = () => {
             Jump to a lesson
           </p>
           <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {[...re5Task4Lessons, ...re5SupplementaryLessons].map((l, idx) => (
+            {[
+              ...re5Task4Lessons,
+              ...re5OtherTaskLessons,
+              ...re5SupplementaryLessons,
+            ].map((l, idx) => (
               <li key={l.id}>
                 <a
                   href={`#lesson-${l.order}`}
@@ -63,7 +72,10 @@ const CoursePage = () => {
                     {idx + 1}
                   </span>
                   <span className="truncate">
-                    {l.title.replace(/^(QC\d+|Supp[-\w]*)\s*[—-]\s*/, "")}
+                    {l.title.replace(
+                      /^(QC\d+|Supp[-\w]*|Task\s+\d+)\s*[—-]\s*/,
+                      "",
+                    )}
                   </span>
                 </a>
               </li>
@@ -78,6 +90,41 @@ const CoursePage = () => {
               key={l.id}
               lesson={l}
               number={idx + 1}
+              total={totalLessons}
+            />
+          ))}
+        </div>
+
+        {/* ── Other RE5 Tasks (coverage overview) section ──────────────── */}
+        <section
+          id="other-tasks"
+          className="mt-20 mb-10 scroll-mt-24 space-y-4 border-t border-border pt-12"
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <Badge variant="secondary" className="text-xs">
+              All RE5 Tasks · Coverage overview
+            </Badge>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            The other seven RE5 tasks at a glance
+          </h2>
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            One syllabus-anchored lesson per task for Tasks 1, 2, 3, 5, 6, 7
+            and 8 — covering the rest of the RE5 examination outside the Task 4
+            deep dive above. Each lesson uses the same exam-grade five-question
+            format: one Knowledge, one Comprehension, two Application, one
+            Analysis. Statutory references are mapped directly from the
+            Moonstone Preparation Guide Appendix A.
+          </p>
+        </section>
+
+        <div className="space-y-12">
+          {re5OtherTaskLessons.map((l, idx) => (
+            <LessonBlock
+              key={l.id}
+              lesson={l}
+              number={re5Task4Lessons.length + idx + 1}
               total={totalLessons}
             />
           ))}
@@ -110,7 +157,12 @@ const CoursePage = () => {
             <LessonBlock
               key={l.id}
               lesson={l}
-              number={re5Task4Lessons.length + idx + 1}
+              number={
+                re5Task4Lessons.length +
+                re5OtherTaskLessons.length +
+                idx +
+                1
+              }
               total={totalLessons}
             />
           ))}

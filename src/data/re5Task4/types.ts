@@ -64,8 +64,12 @@ export interface Lesson {
   qcDescription: string;
   /** Primary statutory references (FAIS Act sections, GCOC sections, Board Notices) */
   statutoryRefs: string[];
-  /** YouTube video ID (e.g. "eBhVIvoTViU") */
-  youtubeId: string;
+  /**
+   * YouTube video ID (e.g. "eBhVIvoTViU"). When null/undefined, the lesson
+   * renders without a video player — useful for syllabus-coverage lessons
+   * that don't yet have a paired video.
+   */
+  youtubeId: string | null;
   /** Optional playlist context — embed will include &list=&index= */
   playlist?: { listId: string; index: number };
   /** Bullet-list of core concepts the video covers, shown above the player */
