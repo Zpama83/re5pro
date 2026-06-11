@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Card,
   CardContent,
@@ -18,11 +19,19 @@ import {
 /*  Feature flags                                                              */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Public sign-up is suspended until the app is live.
- * Flip this to `true` at launch to re-enable the "Create an account" flow.
- */
-const ALLOW_SIGNUP = false;
+/** Public sign-up is open. Flip to `false` to lock the door. */
+const ALLOW_SIGNUP = true;
+
+export type ExamTrack = "RE1" | "RE5";
+
+export interface UserProfile {
+  user_id: string;
+  email: string;
+  exam_track: ExamTrack | null;
+  is_revoked: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Context                                                                    */
@@ -31,6 +40,7 @@ const ALLOW_SIGNUP = false;
 interface ClaudeAuthContextValue {
   session: Session | null;
   user: User | null;
+  profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -55,6 +65,7 @@ export const ClaudeAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -74,6 +85,46 @@ export const ClaudeAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => subscription.unsubscribe();
   }, []);
 
+  // Whenever the session changes, fetch the user_profiles row.
+  // If the user has been revoked, force a sign-out.
+  useEffect(() => {
+    if (!session?.user) {
+      setProfile(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .maybeSingle<UserProfile>();
+
+      if (cancelled) return;
+
+      if (error) {
+        // Don't lock the user out for a transient fetch error.
+        console.warn("[ClaudeAuth] failed to load user_profiles:", error.message);
+        setProfile(null);
+        return;
+      }
+
+      if (data?.is_revoked) {
+        await supabase.auth.signOut();
+        toast.error("Your account has been revoked. Contact the administrator.");
+        setProfile(null);
+        return;
+      }
+
+      setProfile(data ?? null);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) toast.error(error.message);
@@ -81,7 +132,13 @@ export const ClaudeAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <ClaudeAuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signOut }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        profile,
+        loading,
+        signOut,
+      }}
     >
       {children}
     </ClaudeAuthContext.Provider>
@@ -124,6 +181,7 @@ const AuthForm: React.FC = () => {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [examTrack, setExamTrack] = useState<ExamTrack | "">("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,9 +195,18 @@ const AuthForm: React.FC = () => {
         });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        if (!examTrack) {
+          throw new Error("Please choose which exam you are preparing for.");
+        }
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { exam_track: examTrack } },
+        });
         if (error) throw error;
-        toast.success("Check your inbox to confirm your email.");
+        toast.success(
+          "Account created. If email confirmation is enabled in Supabase, check your inbox.",
+        );
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
@@ -188,6 +255,41 @@ const AuthForm: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <Label>Which exam are you preparing for?</Label>
+                <RadioGroup
+                  value={examTrack}
+                  onValueChange={(v) => setExamTrack(v as ExamTrack)}
+                  className="gap-2"
+                >
+                  <Label
+                    htmlFor="track-re1"
+                    className="flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-sm hover:bg-accent/40"
+                  >
+                    <RadioGroupItem id="track-re1" value="RE1" className="mt-0.5" />
+                    <span className="leading-relaxed">
+                      <span className="font-semibold">RE1</span> — Key Individual
+                      <span className="block text-xs text-muted-foreground">
+                        Regulatory Examination for FSP managers / Key Individuals.
+                      </span>
+                    </span>
+                  </Label>
+                  <Label
+                    htmlFor="track-re5"
+                    className="flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-sm hover:bg-accent/40"
+                  >
+                    <RadioGroupItem id="track-re5" value="RE5" className="mt-0.5" />
+                    <span className="leading-relaxed">
+                      <span className="font-semibold">RE5</span> — Representative
+                      <span className="block text-xs text-muted-foreground">
+                        Regulatory Examination for client-facing representatives.
+                      </span>
+                    </span>
+                  </Label>
+                </RadioGroup>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button type="submit" className="w-full" disabled={submitting}>

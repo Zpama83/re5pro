@@ -18,6 +18,8 @@ import RE1StudyGuidePage from "./pages/re1/RE1StudyGuidePage";
 import { RE1Guard } from "./components/re1/RE1Guard";
 import { ClaudeAuthProvider, ClaudeAuthGate } from "./ClaudeAuth";
 import CoursePage from "./pages/CoursePage";
+import AdminPage from "./pages/AdminPage";
+import { Footer } from "./components/Footer";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/course" element={<CoursePage />} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/study-guide" element={<StudyGuidePage />} />
               <Route path="/deeper-knowledge" element={<DeeperKnowledge />} />
               <Route path="/deeper-knowledge/:slug" element={<DeeperKnowledge />} />
@@ -47,6 +50,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <Footer />
           </ClaudeAuthGate>
         </BrowserRouter>
       </TooltipProvider>
