@@ -126,6 +126,13 @@ export const ClaudeAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [session?.user?.id]);
 
   const signOut = async () => {
+    // Reset the per-session track-redirect flag so the next user gets the
+    // appropriate landing page on their first visit to "/".
+    try {
+      sessionStorage.removeItem("re1-track-redirected");
+    } catch {
+      // SSR / privacy-mode safety; nothing to do.
+    }
     const { error } = await supabase.auth.signOut();
     if (error) toast.error(error.message);
   };
