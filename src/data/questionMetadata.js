@@ -1,4 +1,4 @@
-// Metadata layer for RE5 question bank (300 questions).
+// Metadata layer for RE5 question bank (325 questions).
 // Maps each question id -> { taskId, complexityLevel, questionStyle, legislativeCitation }
 //
 // FSCA 8 Core Tasks:
@@ -111,6 +111,33 @@ const EXPLICIT = {
   298: { level: 4, style: "RomanNumeral" },
   299: { level: 4, style: "RomanNumeral" },
   300: { level: 4, style: "RomanNumeral" },
+
+  // ===== Framework-current batch 301-325 (tagged precisely) =====
+  301: { level: 1, style: "Direct" },
+  302: { level: 1, style: "Direct" },
+  303: { level: 1, style: "Direct" },
+  304: { level: 1, style: "Direct" },
+  305: { level: 1, style: "Direct" },
+  306: { level: 1, style: "Direct" },
+  307: { level: 1, style: "Direct" },
+  308: { level: 2, style: "MostBestLeast" },
+  309: { level: 2, style: "MostBestLeast" },
+  310: { level: 2, style: "Direct" },
+  311: { level: 2, style: "Direct" },
+  312: { level: 2, style: "Direct" },
+  313: { level: 2, style: "Direct" },
+  314: { level: 3, style: "Scenario" },
+  315: { level: 3, style: "Scenario" },
+  316: { level: 3, style: "Direct" },
+  317: { level: 3, style: "Direct" },
+  318: { level: 3, style: "Scenario" },
+  319: { level: 3, style: "Scenario" },
+  320: { level: 3, style: "Scenario" },
+  321: { level: 3, style: "RomanNumeral" },
+  322: { level: 4, style: "RomanNumeral" },
+  323: { level: 4, style: "Scenario" },
+  324: { level: 4, style: "Scenario" },
+  325: { level: 4, style: "Scenario" },
 };
 
 // Heuristic complexity assignment for IDs 1-250 to roughly mirror FSCA 30/40/20/10.
