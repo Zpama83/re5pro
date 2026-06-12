@@ -17,15 +17,29 @@ import {
   type QuizQuestion,
 } from "@/data/re5Task4";
 
+/** What `onSubmit` receives for each question after the learner submits. */
+export interface QuizQuestionOutcome {
+  questionId: string;
+  selected: "A" | "B" | "C" | "D";
+  correct: "A" | "B" | "C" | "D";
+  isCorrect: boolean;
+}
+
 interface Props {
   quiz: Quiz;
   /** Used for stable form field names */
   scopeId: string;
+  /**
+   * Fires once when the learner submits the quiz, with the full set of
+   * per-question outcomes. Parents use this to persist learning history
+   * (spaced repetition, etc.). Fire-and-forget — errors are swallowed.
+   */
+  onSubmit?: (outcomes: QuizQuestionOutcome[]) => void;
 }
 
 type AnswerMap = Record<string, "A" | "B" | "C" | "D" | undefined>;
 
-export const QuizBlock: React.FC<Props> = ({ quiz, scopeId }) => {
+export const QuizBlock: React.FC<Props> = ({ quiz, scopeId, onSubmit }) => {
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -49,6 +63,25 @@ export const QuizBlock: React.FC<Props> = ({ quiz, scopeId }) => {
   const handleSubmit = () => {
     if (!allAnswered) return;
     setSubmitted(true);
+
+    if (onSubmit) {
+      const outcomes: QuizQuestionOutcome[] = quiz.questions.map((q) => {
+        const selected = (answers[q.id] ?? "A") as "A" | "B" | "C" | "D";
+        return {
+          questionId: q.id,
+          selected,
+          correct: q.correct,
+          isCorrect: selected === q.correct,
+        };
+      });
+      // Fire-and-forget — the UI should never wait on persistence.
+      try {
+        onSubmit(outcomes);
+      } catch {
+        // intentionally swallowed
+      }
+    }
+
     // Smoothly scroll the results banner into view
     requestAnimationFrame(() => {
       document

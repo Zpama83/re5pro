@@ -8,13 +8,17 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
-import { QuizBlock } from "@/components/course/QuizBlock";
+import {
+  QuizBlock,
+  type QuizQuestionOutcome,
+} from "@/components/course/QuizBlock";
 import type {
   Quiz,
   QuizQuestion,
   CognitiveLevel,
 } from "@/data/re5Task4/types";
 import type { RE1Lesson } from "@/data/re1Course";
+import { useClaudeAuth } from "@/ClaudeAuth";
 
 interface Props {
   lesson: RE1Lesson;
@@ -33,6 +37,7 @@ interface Props {
  * usable rather than failing closed.
  */
 export const RE1LessonBlock: React.FC<Props> = ({ lesson, number, total }) => {
+  const { user } = useClaudeAuth();
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,14 +64,34 @@ export const RE1LessonBlock: React.FC<Props> = ({ lesson, number, total }) => {
         return;
       }
 
-      setQuiz({ questions: pickQuestions(rows) });
+      // Fetch the user's prior history on these candidate questions so we
+      // can bias selection toward unseen + previously-wrong ones.
+      // Silently falls back to pure random when there's no user, the table
+      // doesn't exist yet, or the read otherwise fails.
+      let history: Map<string, HistoryRow> = new Map();
+      if (user?.id) {
+        const { data: histData, error: histErr } = await supabase
+          .from("re1_user_question_history")
+          .select("*")
+          .eq("user_id", user.id)
+          .in(
+            "question_id",
+            rows.map((r) => r.id),
+          );
+
+        if (!histErr && histData) {
+          history = new Map(histData.map((h) => [h.question_id, h as HistoryRow]));
+        }
+      }
+
+      setQuiz({ questions: pickQuestions(rows, history) });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load quiz.");
       setQuiz(null);
     } finally {
       setLoading(false);
     }
-  }, [lesson.topicTags, reloadKey]);
+  }, [lesson.topicTags, reloadKey, user?.id]);
 
   useEffect(() => {
     fetchQuiz();
@@ -159,8 +184,12 @@ export const RE1LessonBlock: React.FC<Props> = ({ lesson, number, total }) => {
         </div>
       ) : quiz ? (
         <>
-          <QuizBlock quiz={quiz} scopeId={lesson.id} />
-          <div className="flex justify-end">
+          <QuizBlock
+            quiz={quiz}
+            scopeId={lesson.id}
+            onSubmit={(outcomes) => recordOutcomes(user?.id, outcomes)}
+          />
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -195,12 +224,62 @@ interface RE1QuestionRow {
   is_active: boolean | null;
 }
 
+export interface HistoryRow {
+  user_id: string;
+  question_id: string;
+  attempts: number;
+  correct_count: number;
+  last_seen_at: string | null;
+  last_correct_at: string | null;
+}
+
 /**
- * Pick 5 questions matching the 1×L1 / 1×L2 / 2×L3 / 1×L4 distribution.
+ * Spaced-repetition weight for a question, given the learner's prior history.
+ *
+ *   never seen           → weight 4   (highest priority)
+ *   seen but wrong last  → weight 3
+ *   seen, mixed history  → weight 2
+ *   always correct       → weight 1   (lowest priority)
+ *
+ * A weighted random sample is then drawn — questions are not deterministically
+ * ordered, so repeat visits still surface variety, but the learner sees more
+ * of what they need to practise.
+ */
+const historyWeight = (h: HistoryRow | undefined): number => {
+  if (!h || h.attempts === 0) return 4;
+  const accuracy = h.correct_count / h.attempts;
+  if (accuracy === 0) return 3;
+  if (accuracy < 1) return 2;
+  return 1;
+};
+
+const weightedShuffle = (
+  rows: RE1QuestionRow[],
+  history: Map<string, HistoryRow>,
+): RE1QuestionRow[] => {
+  // Assign each row a random key inversely proportional to its weight, then
+  // sort ascending. (Smaller key = picked earlier.) This is the standard
+  // weighted-sampling-without-replacement trick.
+  return rows
+    .map((r) => {
+      const w = historyWeight(history.get(r.id));
+      const key = -Math.log(Math.random()) / w;
+      return { r, key };
+    })
+    .sort((a, b) => a.key - b.key)
+    .map((x) => x.r);
+};
+
+/**
+ * Pick 5 questions matching the 1×L1 / 1×L2 / 2×L3 / 1×L4 distribution,
+ * biased by the learner's prior history (unseen + previously-wrong first).
  * Where a level is missing for these tags, backfill from any available level
  * to keep the lesson functional rather than empty.
  */
-const pickQuestions = (rows: RE1QuestionRow[]): QuizQuestion[] => {
+const pickQuestions = (
+  rows: RE1QuestionRow[],
+  history: Map<string, HistoryRow> = new Map(),
+): QuizQuestion[] => {
   const byLevel: Record<CognitiveLevel, RE1QuestionRow[]> = {
     1: [],
     2: [],
@@ -215,7 +294,7 @@ const pickQuestions = (rows: RE1QuestionRow[]): QuizQuestion[] => {
 
   const pickN = (level: CognitiveLevel, n: number): RE1QuestionRow[] => {
     const pool = byLevel[level];
-    return shuffle(pool).slice(0, n);
+    return weightedShuffle(pool, history).slice(0, n);
   };
 
   const wanted: RE1QuestionRow[] = [
@@ -228,14 +307,55 @@ const pickQuestions = (rows: RE1QuestionRow[]): QuizQuestion[] => {
   // Backfill from any remaining pool if we couldn't satisfy the distribution.
   if (wanted.length < 5) {
     const used = new Set(wanted.map((r) => r.id));
-    const fillers = shuffle(rows.filter((r) => !used.has(r.id))).slice(
-      0,
-      5 - wanted.length,
-    );
+    const fillers = weightedShuffle(
+      rows.filter((r) => !used.has(r.id)),
+      history,
+    ).slice(0, 5 - wanted.length);
     wanted.push(...fillers);
   }
 
   return wanted.slice(0, 5).map(rowToQuestion);
+};
+
+/**
+ * Upsert per-question outcomes into re1_user_question_history.
+ * Fire-and-forget: errors are swallowed so a transient write failure or a
+ * missing table never breaks the learner's quiz UX.
+ */
+const recordOutcomes = async (
+  userId: string | undefined,
+  outcomes: QuizQuestionOutcome[],
+) => {
+  if (!userId || outcomes.length === 0) return;
+  const now = new Date().toISOString();
+
+  // Read current rows in one round-trip, then build per-row updates.
+  const ids = outcomes.map((o) => o.questionId);
+  const { data: existingData, error: readErr } = await supabase
+    .from("re1_user_question_history")
+    .select("*")
+    .eq("user_id", userId)
+    .in("question_id", ids);
+
+  if (readErr) return; // Table likely missing — silent fallback.
+
+  const existing = new Map<string, HistoryRow>(
+    (existingData ?? []).map((h) => [h.question_id, h as HistoryRow]),
+  );
+
+  const upserts = outcomes.map((o) => {
+    const prev = existing.get(o.questionId);
+    return {
+      user_id: userId,
+      question_id: o.questionId,
+      attempts: (prev?.attempts ?? 0) + 1,
+      correct_count: (prev?.correct_count ?? 0) + (o.isCorrect ? 1 : 0),
+      last_seen_at: now,
+      last_correct_at: o.isCorrect ? now : prev?.last_correct_at ?? null,
+    };
+  });
+
+  await supabase.from("re1_user_question_history").upsert(upserts);
 };
 
 const rowToQuestion = (r: RE1QuestionRow): QuizQuestion => {

@@ -185,6 +185,33 @@ export type Database = {
         }
         Relationships: []
       }
+      re1_user_question_history: {
+        Row: {
+          user_id: string
+          question_id: string
+          attempts: number
+          correct_count: number
+          last_seen_at: string | null
+          last_correct_at: string | null
+        }
+        Insert: {
+          user_id: string
+          question_id: string
+          attempts?: number
+          correct_count?: number
+          last_seen_at?: string | null
+          last_correct_at?: string | null
+        }
+        Update: {
+          user_id?: string
+          question_id?: string
+          attempts?: number
+          correct_count?: number
+          last_seen_at?: string | null
+          last_correct_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
