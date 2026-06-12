@@ -34,6 +34,11 @@ is the standard one-time GitHub import — no CLI required.
 - **Auto-deploys are on by default.** Every push to `main` triggers a
   production build. Every push to a feature branch triggers a preview
   deployment with its own URL.
+- **Note: `origin` mirrors to two GitHub remotes.** Configured locally so
+  `git push origin HEAD:main` lands at both `Manginza/RE5CertPro` AND
+  `Zpama83/re5pro` in one command (see `git remote -v`). Vercel only
+  watches whichever single remote you imported — the mirror is for
+  redundancy, not for parallel deploys.
 - You'll get a `*.vercel.app` URL immediately. To use a custom domain
   (e.g. `re5certpro.co.za`), go to Project Settings → Domains → Add.
   Vercel will give you the DNS records to point at your registrar.
