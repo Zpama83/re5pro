@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { RE1TopNav } from '@/components/re1/RE1TopNav';
 
 const RE1LandingPage = () => {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-12">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
+      <RE1TopNav />
+      <div className="max-w-4xl mx-auto space-y-12 py-12 px-4 sm:px-6 lg:px-8">
         {/* Hero Section */}
         <div className="text-center space-y-6">
           <h1 className="text-4xl md:text-5xl font-extrabold text-[#1B3A6B] dark:text-white tracking-tight">

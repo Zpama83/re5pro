@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { RE1TopNav } from '@/components/re1/RE1TopNav';
 
 const RE1StudyGuidePage = () => {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-12">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
+      <RE1TopNav />
+      <div className="max-w-4xl mx-auto space-y-12 py-12 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <Link to="/re1" className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 flex items-center gap-2">
             ← Back to RE1 Dashboard

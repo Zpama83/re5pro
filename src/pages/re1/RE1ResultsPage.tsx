@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { RE1ResultsSummary } from '@/components/re1/RE1ResultsSummary';
 import { RE1QuestionCard } from '@/components/re1/RE1QuestionCard';
+import { RE1TopNav } from '@/components/re1/RE1TopNav';
 import { RE1UserSession, RE1Question } from '@/types/re1';
 
 const RE1ResultsPage = () => {
@@ -95,8 +96,9 @@ const RE1ResultsPage = () => {
     : questions;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6">
-      <div className="max-w-4xl mx-auto space-y-12">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <RE1TopNav />
+      <div className="max-w-4xl mx-auto space-y-12 py-12 px-4 sm:px-6">
         <div className="mb-4">
           <Link to="/re1" className="text-sm font-medium text-slate-500 hover:text-slate-800 flex items-center gap-2">
             ← Back to RE1 Dashboard

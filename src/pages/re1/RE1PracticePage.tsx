@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useRE1Questions } from '@/hooks/useRE1Questions';
 import { RE1QuestionCard } from '@/components/re1/RE1QuestionCard';
+import { RE1TopNav } from '@/components/re1/RE1TopNav';
 import { RE1Question, RE1TopicTag, RE1ComplexityLevel } from '@/types/re1';
 
 const ALL_TOPICS: RE1TopicTag[] = [
@@ -65,7 +66,9 @@ const RE1PracticePage = () => {
 
   if (!sessionStarted) {
     return (
-      <div className="max-w-4xl mx-auto py-12 px-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <RE1TopNav />
+        <div className="max-w-4xl mx-auto py-12 px-4">
         <Link to="/re1" className="text-sm font-medium text-slate-500 hover:text-slate-800 mb-8 inline-block">← Back to RE1 Dashboard</Link>
         <h1 className="text-3xl font-bold mb-8 text-[#1B3A6B]">Practice Configuration</h1>
         
@@ -114,6 +117,7 @@ const RE1PracticePage = () => {
         </button>
 
         {error && <div className="mt-4 text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>}
+        </div>
       </div>
     );
   }
@@ -124,7 +128,9 @@ const RE1PracticePage = () => {
   const correctCount = Object.keys(answers).filter(id => answers[id] === questions.find(q => q.id === id)?.correct_answer).length;
 
   return (
-    <div className="max-w-3xl mx-auto py-12 px-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <RE1TopNav />
+      <div className="max-w-3xl mx-auto py-12 px-4">
       <div className="flex justify-between items-center mb-8">
         <button onClick={() => setSessionStarted(false)} className="text-sm font-medium text-slate-500 hover:text-slate-800">
           End Practice
@@ -154,13 +160,14 @@ const RE1PracticePage = () => {
           </button>
         )}
         {showFeedback && currentIndex === questions.length - 1 && (
-          <button 
+          <button
             onClick={() => setSessionStarted(false)}
             className="px-8 py-3 bg-[#16A34A] text-white font-bold rounded-lg hover:bg-[#16A34A]/90"
           >
             Finish Practice
           </button>
         )}
+      </div>
       </div>
     </div>
   );
