@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useRE1Questions } from '@/hooks/useRE1Questions';
 import { RE1QuestionCard } from '@/components/re1/RE1QuestionCard';
 import { RE1TopNav } from '@/components/re1/RE1TopNav';
+import { DiscussPanel } from '@/components/community/DiscussPanel';
 import { RE1Question, RE1TopicTag, RE1ComplexityLevel } from '@/types/re1';
 
 const ALL_TOPICS: RE1TopicTag[] = [
@@ -11,6 +12,10 @@ const ALL_TOPICS: RE1TopicTag[] = [
   'fsca_licensing', 'license_lapse_suspension', 'business_rescue', 'fica_aml',
   'regulatory_levies', 'dofa_timelines', 'representative_oversight', 'medical_schemes_act'
 ];
+
+// Placeholder until a topic -> syllabus-day map exists; the Discuss panel keys
+// the forum room by (track, day). Until then it falls back to demo data.
+const DISCUSS_DAY = 4;
 
 const RE1PracticePage = () => {
   const { fetchPracticeQuestions, loading, error } = useRE1Questions();
@@ -24,6 +29,7 @@ const RE1PracticePage = () => {
   const [answers, setAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [showFeedback, setShowFeedback] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [discussOpen, setDiscussOpen] = useState(false);
 
   const startSession = async () => {
     const { data } = await fetchPracticeQuestions({ 
@@ -135,6 +141,9 @@ const RE1PracticePage = () => {
         <button onClick={() => setSessionStarted(false)} className="text-sm font-medium text-slate-500 hover:text-slate-800">
           End Practice
         </button>
+        <button onClick={() => setDiscussOpen(true)} className="text-sm font-medium text-[#1B3A6B] hover:text-[#1B3A6B]/80 inline-flex items-center gap-1">
+          💬 Discuss this question
+        </button>
         <div className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border">
           Score: {correctCount} / {Object.keys(answers).length}
         </div>
@@ -169,6 +178,15 @@ const RE1PracticePage = () => {
         )}
       </div>
       </div>
+      <DiscussPanel
+        open={discussOpen}
+        onClose={() => setDiscussOpen(false)}
+        track="RE1"
+        day={DISCUSS_DAY}
+        topic={currentQ.topic_tag.replace(/_/g, ' ')}
+        questionRef={`RE1 Q${currentIndex + 1}`}
+        legislativeRef={currentQ.legislative_ref}
+      />
     </div>
   );
 };
