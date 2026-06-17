@@ -225,6 +225,7 @@ export type Database = {
           legislative_ref: string | null
           is_pinned: boolean
           created_by: string | null
+          group_id: string | null
           created_at: string
         }
         Insert: {
@@ -239,6 +240,7 @@ export type Database = {
           legislative_ref?: string | null
           is_pinned?: boolean
           created_by?: string | null
+          group_id?: string | null
           created_at?: string
         }
         Update: {
@@ -253,6 +255,7 @@ export type Database = {
           legislative_ref?: string | null
           is_pinned?: boolean
           created_by?: string | null
+          group_id?: string | null
           created_at?: string
         }
         Relationships: []
@@ -344,6 +347,57 @@ export type Database = {
           user_id?: string
           value?: number
           created_at?: string
+        }
+        Relationships: []
+      }
+      forum_groups: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          description: string | null
+          kind: string
+          track_scope: string
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          description?: string | null
+          kind?: string
+          track_scope?: string
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          description?: string | null
+          kind?: string
+          track_scope?: string
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      forum_group_members: {
+        Row: {
+          group_id: string
+          user_id: string
+          joined_at: string
+        }
+        Insert: {
+          group_id: string
+          user_id: string
+          joined_at?: string
+        }
+        Update: {
+          group_id?: string
+          user_id?: string
+          joined_at?: string
         }
         Relationships: []
       }
