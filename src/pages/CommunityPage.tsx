@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RE1TopNav } from '@/components/re1/RE1TopNav';
+import { useForumRoom, type ForumPost, type TrustState, type PostType } from '@/hooks/useForumRoom';
 
 /**
  * Community — "Today's Room" (Daily Study Forum).
@@ -14,24 +15,6 @@ import { RE1TopNav } from '@/components/re1/RE1TopNav';
  * on the student's real "current day" source (enrollment schedule vs.
  * self-marked completion — PRD open question #1), so CURRENT_DAY is a stub.
  */
-
-type TrustState = 'unverified' | 'verified' | 'corrected';
-type PostType = 'eli5' | 'stuck' | 'check_in' | 'reply';
-
-interface ForumPost {
-  id: string;
-  author: string;
-  initials: string;
-  type: PostType;
-  trust?: TrustState;
-  body: string;
-  upvotes?: number;
-  replies?: number;
-  linkedQuestion?: string;
-  legislativeRef?: string;
-  escalatesInHrs?: number;
-  children?: ForumPost[];
-}
 
 const CURRENT_DAY = 4;
 const TRACK = 'RE1';
@@ -118,20 +101,28 @@ const Avatar = ({ initials }: { initials: string }) => (
 );
 
 const CommunityPage = () => {
+  const { posts: livePosts, source, checkIn, upvote } = useForumRoom(TRACK, CURRENT_DAY);
   const [posts, setPosts] = useState<ForumPost[]>(DEMO_POSTS);
   const [checkedIn, setCheckedIn] = useState(false);
   const [streak, setStreak] = useState(4);
+
+  // Use live room data when the forum_* tables return rows; otherwise keep demo.
+  useEffect(() => {
+    if (livePosts && livePosts.length > 0) setPosts(livePosts);
+  }, [livePosts]);
 
   const handleUpvote = (id: string) => {
     setPosts(prev =>
       prev.map(p => (p.id === id ? { ...p, upvotes: (p.upvotes ?? 0) + 1 } : p))
     );
+    upvote(id);
   };
 
   const handleCheckIn = () => {
     if (checkedIn) return;
     setCheckedIn(true);
     setStreak(s => s + 1);
+    checkIn();
   };
 
   return (
@@ -272,7 +263,9 @@ const CommunityPage = () => {
         </div>
 
         <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-4">
-          Demo data — wire to the <span className="font-mono">forum_*</span> tables once the migration is applied.
+          {source === 'live'
+            ? 'Live — loaded from the forum_* tables.'
+            : 'Demo data — goes live automatically once forum_schema.sql is applied.'}
         </p>
       </div>
     </div>

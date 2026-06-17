@@ -212,6 +212,141 @@ export type Database = {
         }
         Relationships: []
       }
+      forum_threads: {
+        Row: {
+          id: string
+          track: string
+          day: number | null
+          topic_tag: string | null
+          type: string
+          title: string
+          prompt: string | null
+          linked_question_id: string | null
+          legislative_ref: string | null
+          is_pinned: boolean
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          track: string
+          day?: number | null
+          topic_tag?: string | null
+          type?: string
+          title: string
+          prompt?: string | null
+          linked_question_id?: string | null
+          legislative_ref?: string | null
+          is_pinned?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          track?: string
+          day?: number | null
+          topic_tag?: string | null
+          type?: string
+          title?: string
+          prompt?: string | null
+          linked_question_id?: string | null
+          legislative_ref?: string | null
+          is_pinned?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      forum_posts: {
+        Row: {
+          id: string
+          thread_id: string
+          parent_post_id: string | null
+          author_id: string | null
+          body: string
+          is_check_in: boolean
+          trust_state: string
+          is_accepted: boolean
+          upvotes: number
+          is_hidden: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          thread_id: string
+          parent_post_id?: string | null
+          author_id?: string | null
+          body: string
+          is_check_in?: boolean
+          trust_state?: string
+          is_accepted?: boolean
+          upvotes?: number
+          is_hidden?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          thread_id?: string
+          parent_post_id?: string | null
+          author_id?: string | null
+          body?: string
+          is_check_in?: boolean
+          trust_state?: string
+          is_accepted?: boolean
+          upvotes?: number
+          is_hidden?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      forum_check_ins: {
+        Row: {
+          id: string
+          user_id: string
+          track: string
+          day: number
+          confidence: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          track: string
+          day: number
+          confidence?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          track?: string
+          day?: number
+          confidence?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      forum_post_votes: {
+        Row: {
+          post_id: string
+          user_id: string
+          value: number
+          created_at: string
+        }
+        Insert: {
+          post_id: string
+          user_id: string
+          value?: number
+          created_at?: string
+        }
+        Update: {
+          post_id?: string
+          user_id?: string
+          value?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
