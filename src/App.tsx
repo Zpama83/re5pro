@@ -20,6 +20,7 @@ import CPDCalculatorPage from "./pages/CPDCalculatorPage";
 import { RE1Guard } from "./components/re1/RE1Guard";
 import { ClaudeAuthProvider, ClaudeAuthGate } from "./ClaudeAuth";
 import CoursePage from "./pages/CoursePage";
+import CommunityPage from "./pages/CommunityPage";
 import AdminPage from "./pages/AdminPage";
 import { Footer } from "./components/Footer";
 
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/course" element={<CoursePage />} />
               <Route path="/cpd-calculator" element={<CPDCalculatorPage />} />
+              <Route path="/community" element={<CommunityPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/study-guide" element={<StudyGuidePage />} />
               <Route path="/deeper-knowledge" element={<DeeperKnowledge />} />

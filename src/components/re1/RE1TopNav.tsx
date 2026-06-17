@@ -17,6 +17,7 @@ export const RE1TopNav: React.FC = () => {
     { to: '/course', label: 'RE5 Course' },
     { to: '/re1', label: 'RE1 Home' },
     { to: '/re1/course', label: 'RE1 Course' },
+    { to: '/community', label: 'Community' },
     { to: '/cpd-calculator', label: 'CPD' },
   ];
 
