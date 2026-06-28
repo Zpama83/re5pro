@@ -22,6 +22,7 @@ import { ClaudeAuthProvider, ClaudeAuthGate } from "./ClaudeAuth";
 import CoursePage from "./pages/CoursePage";
 import CommunityPage from "./pages/CommunityPage";
 import AdminPage from "./pages/AdminPage";
+import ResourcesPage from "./pages/ResourcesPage";
 import { Footer } from "./components/Footer";
 
 const queryClient = new QueryClient();
@@ -33,8 +34,14 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <ClaudeAuthGate>
-            <Routes>
+          {/* Public routes — no auth required */}
+          <Routes>
+            <Route path="/resources" element={<ResourcesPage />} />
+
+            {/* Everything else is auth-gated */}
+            <Route path="/*" element={
+              <ClaudeAuthGate>
+                <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/course" element={<CoursePage />} />
               <Route path="/cpd-calculator" element={<CPDCalculatorPage />} />
@@ -53,11 +60,13 @@ const App = () => (
               <Route path="/re1/mock-exam/results" element={<RE1Guard><RE1ResultsPage /></RE1Guard>} />
               <Route path="/re1/study-guide" element={<RE1Guard><RE1StudyGuidePage /></RE1Guard>} />
 
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Footer />
-          </ClaudeAuthGate>
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <Footer />
+              </ClaudeAuthGate>
+            } />
+          </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
