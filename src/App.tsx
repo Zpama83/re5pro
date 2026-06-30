@@ -34,39 +34,29 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          {/* Public routes — no auth required */}
           <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/course" element={<CoursePage />} />
+            <Route path="/cpd-calculator" element={<CPDCalculatorPage />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/study-guide" element={<StudyGuidePage />} />
+            <Route path="/deeper-knowledge" element={<DeeperKnowledge />} />
+            <Route path="/deeper-knowledge/:slug" element={<DeeperKnowledge />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/resources" element={<ResourcesPage />} />
 
-            {/* Everything else is auth-gated */}
-            <Route path="/*" element={
-              <ClaudeAuthGate>
-                <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/course" element={<CoursePage />} />
-              <Route path="/cpd-calculator" element={<CPDCalculatorPage />} />
-              <Route path="/community" element={<CommunityPage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/study-guide" element={<StudyGuidePage />} />
-              <Route path="/deeper-knowledge" element={<DeeperKnowledge />} />
-              <Route path="/deeper-knowledge/:slug" element={<DeeperKnowledge />} />
-              <Route path="/privacy" element={<Privacy />} />
+            {/* RE1 Routes */}
+            <Route path="/re1" element={<RE1Guard><RE1LandingPage /></RE1Guard>} />
+            <Route path="/re1/course" element={<RE1Guard><RE1CoursePage /></RE1Guard>} />
+            <Route path="/re1/practice" element={<RE1Guard><RE1PracticePage /></RE1Guard>} />
+            <Route path="/re1/mock-exam" element={<RE1Guard><RE1MockExamPage /></RE1Guard>} />
+            <Route path="/re1/mock-exam/results" element={<RE1Guard><RE1ResultsPage /></RE1Guard>} />
+            <Route path="/re1/study-guide" element={<RE1Guard><RE1StudyGuidePage /></RE1Guard>} />
 
-              {/* RE1 Routes */}
-              <Route path="/re1" element={<RE1Guard><RE1LandingPage /></RE1Guard>} />
-              <Route path="/re1/course" element={<RE1Guard><RE1CoursePage /></RE1Guard>} />
-              <Route path="/re1/practice" element={<RE1Guard><RE1PracticePage /></RE1Guard>} />
-              <Route path="/re1/mock-exam" element={<RE1Guard><RE1MockExamPage /></RE1Guard>} />
-              <Route path="/re1/mock-exam/results" element={<RE1Guard><RE1ResultsPage /></RE1Guard>} />
-              <Route path="/re1/study-guide" element={<RE1Guard><RE1StudyGuidePage /></RE1Guard>} />
-
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                <Footer />
-              </ClaudeAuthGate>
-            } />
+            <Route path="*" element={<NotFound />} />
           </Routes>
+          <Footer />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
