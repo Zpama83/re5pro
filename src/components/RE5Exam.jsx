@@ -854,7 +854,7 @@ export default function RE5Exam() {
   }
 
   const pct = examQuestions.length > 0 ? Math.round((score / examQuestions.length) * 100) : 0;
-  const passed = pct >= 65;
+  const passed = pct >= 66;
   const mins = Math.floor((timeLeft || 0) / 60);
   const secs = (timeLeft || 0) % 60;
 
@@ -931,7 +931,7 @@ export default function RE5Exam() {
                 <span style={{ fontSize: 32, color: "#e9c176" }}>📜</span>
               </div>
               <h1 className="rcp-headline" style={{ fontSize: 48, fontWeight: 700, color: "#d3e4fe", margin: "0 0 16px", letterSpacing: -1, lineHeight: 1.1 }}>RE5 Practice Examination</h1>
-              <p style={{ fontSize: 18, lineHeight: 1.55, color: "#c6c6cd", maxWidth: 640, margin: "0 auto" }}>250 unique exam-grade questions across all FAIS topics.</p>
+              <p style={{ fontSize: 18, lineHeight: 1.55, color: "#c6c6cd", maxWidth: 640, margin: "0 auto" }}>{questions.length} unique exam-grade questions across all FAIS topics.</p>
             </section>
 
             {/* Metrics bento */}
@@ -967,7 +967,7 @@ export default function RE5Exam() {
                       <div style={{ opacity: smartMode ? 0.4 : 1, pointerEvents: smartMode ? "none" : "auto" }}>
                         <label style={{ display: "block", fontSize: 12, color: "#c6c6cd", letterSpacing: 2, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, paddingLeft: 4 }}>Topic Filter</label>
                         <select value={selectedTopic} onChange={e => setSelectedTopic(e.target.value)} style={{ width: "100%", background: "#0b1c30", border: "1px solid #45464d", color: "#d3e4fe", padding: "14px 16px", borderRadius: 12, fontSize: 15, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>
-                          {TOPICS.map(t => <option key={t} value={t}>{t} {t !== "All Topics" ? `(${questions.filter(q => q.topic === t).length} questions)` : "(250 questions)"}</option>)}
+                          {TOPICS.map(t => <option key={t} value={t}>{t} {t !== "All Topics" ? `(${questions.filter(q => q.topic === t).length} questions)` : `(${questions.length} questions)`}</option>)}
                         </select>
                       </div>
 

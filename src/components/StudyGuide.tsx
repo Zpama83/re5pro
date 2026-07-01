@@ -206,7 +206,7 @@ Both practices are prohibited under the Code of Conduct and constitute misconduc
 |--------|--------|
 | Jurisdiction | Complaints against FSPs for contraventions of FAIS Act or Code of Conduct |
 | Who can complain | Any client who has suffered financial loss or prejudice |
-| Prerequisites | Must first lodge with FSP and allow 15 business days for resolution |
+| Prerequisites | Must first lodge with FSP; FSP has 6 weeks (reasonable opportunity) to resolve before Ombud referral is permissible |
 | Time limit | Within 3 years of becoming aware of the complaint |
 | Maximum award | R800,000 compensation to the complainant |
 | Cost | Free to complainants |
@@ -249,7 +249,7 @@ Both practices are prohibited under the Code of Conduct and constitute misconduc
         title: "6.4 Reporting Obligations",
         content: `| Report Type | Trigger |
 |-------------|---------|
-| Cash Threshold Report (CTR) | Cash transactions exceeding R24,999.99 must be reported to FIC |
+| Cash Threshold Report (CTR) | Cash transactions of R49,999.99 or more (i.e. R50,000+) must be reported to FIC |
 | Suspicious Transaction Report (STR) | Any transaction suspected to be related to money laundering or crime |
 | Terrorist Property Report (TPR) | Property owned by or associated with a terrorist organisation |`
       },
@@ -474,9 +474,9 @@ Both practices are prohibited under the Code of Conduct and constitute misconduc
         title: "12.1 About the RE5 Exam",
         content: `| Aspect | Detail |
 |--------|--------|
-| Format | Multiple choice questions (typically 80–120 questions) |
-| Duration | 3 hours |
-| Pass mark | 65% |
+| Format | Multiple choice questions (50 questions) |
+| Duration | 2 hours |
+| Pass mark | 66% |
 | Setting | Computer-based at registered examination centres |
 | Results | Immediately after completion |`
       },
@@ -493,7 +493,7 @@ Both practices are prohibited under the Code of Conduct and constitute misconduc
         content: `1. Disclosure requirements (initial and ongoing)
 2. Needs analysis and suitability of advice
 3. Record of advice — what it must contain and how long to keep it
-4. Complaints process — internal (15 days) and the FAIS Ombud (R800,000 cap)
+4. Complaints process — internal (15 business days target; 6 weeks before Ombud referral) and the FAIS Ombud (R800,000 cap)
 5. Fit and proper requirements — all five pillars
 6. FICA — CDD, reporting obligations, tipping off
 7. Conflict of interest — disclosure and management policy
@@ -510,14 +510,14 @@ Both practices are prohibited under the Code of Conduct and constitute misconduc
 | 15 business days | Internal complaint resolution period |
 | 3 years | Time limit to lodge complaint with FAIS Ombud |
 | R800,000 | Maximum FAIS Ombud compensation award |
-| 65% | RE5 pass mark |
+| 66% | RE5 pass mark |
 | 27.5% | Maximum retirement fund contribution deduction |
 | R36,000 | Annual TFSA contribution limit |
 | R40,000 | Annual CGT exclusion for individuals |
 | 20% | Dividends withholding tax rate |
 | 20% | Estate duty rate (up to R30m dutiable estate) |
 | 15% | Standard VAT rate |
-| R24,999.99 | FICA cash threshold reporting amount |
+| R49,999.99 | FICA cash threshold reporting amount (R50,000 or more) |
 | 6 CPD hours | Minimum annual CPD requirement |`
       },
       {
@@ -526,7 +526,7 @@ Both practices are prohibited under the Code of Conduct and constitute misconduc
 • Confusing the FAIS Ombud (complaints) with the FSCA (licensing and regulation)
 • Thinking advice can be given before a needs analysis — it cannot
 • Forgetting that the record of advice must be kept for 5 years (not 3)
-• Confusing FICA's cash threshold (R24,999.99) with other amounts
+• Confusing FICA's cash threshold (R49,999.99 — i.e. R50,000 or more triggers a CTR) with other amounts
 • Thinking an FSP can operate while their licence is suspended — they cannot`
       }
     ]
