@@ -23,6 +23,10 @@ import CoursePage from "./pages/CoursePage";
 import CommunityPage from "./pages/CommunityPage";
 import AdminPage from "./pages/AdminPage";
 import ResourcesPage from "./pages/ResourcesPage";
+import BlogIndexPage from "./pages/BlogIndexPage";
+import BlogPostPage from "./pages/BlogPostPage";
+import AboutPage from "./pages/AboutPage";
+import ContactPage from "./pages/ContactPage";
 import { Footer } from "./components/Footer";
 
 const queryClient = new QueryClient();
@@ -45,6 +49,10 @@ const App = () => (
             <Route path="/deeper-knowledge/:slug" element={<DeeperKnowledge />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/resources" element={<ResourcesPage />} />
+            <Route path="/blog" element={<BlogIndexPage />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
 
             {/* RE1 Routes */}
             <Route path="/re1" element={<RE1Guard><RE1LandingPage /></RE1Guard>} />
