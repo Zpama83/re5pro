@@ -18,7 +18,7 @@ import RE1StudyGuidePage from "./pages/re1/RE1StudyGuidePage";
 import RE1CoursePage from "./pages/RE1CoursePage";
 import CPDCalculatorPage from "./pages/CPDCalculatorPage";
 import { RE1Guard } from "./components/re1/RE1Guard";
-import { ClaudeAuthProvider, ClaudeAuthGate } from "./ClaudeAuth";
+import { ClaudeAuthProvider } from "./ClaudeAuth";
 import CoursePage from "./pages/CoursePage";
 import CommunityPage from "./pages/CommunityPage";
 import AdminPage from "./pages/AdminPage";
@@ -27,7 +27,10 @@ import BlogIndexPage from "./pages/BlogIndexPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
+import TermsPage from "./pages/TermsPage";
+import CookiePolicyPage from "./pages/CookiePolicyPage";
 import { Footer } from "./components/Footer";
+import { CookieConsent } from "./components/CookieConsent";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +51,8 @@ const App = () => (
             <Route path="/deeper-knowledge" element={<DeeperKnowledge />} />
             <Route path="/deeper-knowledge/:slug" element={<DeeperKnowledge />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/cookie-policy" element={<CookiePolicyPage />} />
             <Route path="/resources" element={<ResourcesPage />} />
             <Route path="/blog" element={<BlogIndexPage />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
@@ -65,6 +70,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Footer />
+          <CookieConsent />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -60,6 +60,8 @@ export const Footer: React.FC = () => (
                 ["About", "/about"],
                 ["Contact", "/contact"],
                 ["Privacy Policy", "/privacy"],
+                ["Terms of Service", "/terms"],
+                ["Cookie Policy", "/cookie-policy"],
               ].map(([label, to]) => (
                 <Link key={to} to={to} style={{ color: "#4a6080", textDecoration: "none", fontSize: 13 }}
                   onMouseEnter={e => (e.currentTarget.style.color = "#9fb4d6")}
