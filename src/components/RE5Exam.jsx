@@ -1055,23 +1055,13 @@ export default function RE5Exam() {
         }
       `}</style>
 
-      {/* TopNavBar */}
-      <nav style={{ background: "#031427", borderBottom: "1px solid #45464d", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 80 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 12, background: "linear-gradient(135deg, #e9c176, #dab36a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: "#412d00" }}>R</div>
-            <span className="rcp-headline" style={{ fontSize: 22, fontWeight: 700, color: "#e9c176", letterSpacing: -0.3 }}>RE5 Certify Pro</span>
-          </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <Link to="/resources" style={{ background: "transparent", color: "#9fb4d6", border: "1px solid #2d4670", padding: "10px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>📚 Resources</Link>
-            <Link to="/cpd-calculator" title="CPD pro-rata calculator" style={{ background: "transparent", color: "#9fb4d6", border: "1px solid #2d4670", padding: "10px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>🧮 CPD</Link>
-            <Link to="/re1" style={{ background: "transparent", color: "#9fb4d6", border: "1px solid #2d4670", padding: "10px 18px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>📘 RE1 Key Individual</Link>
-            <Link to="/course" style={{ background: "#e9c176", color: "#412d00", padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(233,193,118,0.15)" }}>🎓 RE5 Task 4 Course</Link>
-            {mode !== "home" && <button onClick={() => { setMode("home"); setTimerActive(false); }} style={{ background: "transparent", border: "1px solid #45464d", color: "#c6c6cd", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>← Home</button>}
-            {mode === "exam" && <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(233,193,118,0.3)", borderRadius: 8, padding: "6px 16px", fontFamily: "monospace", fontSize: 16, color: timeLeft < 300 ? "#ffb4ab" : "#e9c176" }}>⏱ {mins}:{secs.toString().padStart(2, "0")}</div>}
-          </div>
+      {/* Exam controls bar — only visible during exam or results */}
+      {mode !== "home" && (
+        <div style={{ background: "#031427", borderBottom: "1px solid #45464d", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+          <button onClick={() => { setMode("home"); setTimerActive(false); }} style={{ background: "transparent", border: "1px solid #45464d", color: "#c6c6cd", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>← Home</button>
+          {mode === "exam" && <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(233,193,118,0.3)", borderRadius: 8, padding: "6px 16px", fontFamily: "monospace", fontSize: 16, color: timeLeft < 300 ? "#ffb4ab" : "#e9c176" }}>⏱ {mins}:{secs.toString().padStart(2, "0")}</div>}
         </div>
-      </nav>
+      )}
 
       <div className={mode === "home" ? "rcp-hero-bg" : ""} style={{ maxWidth: mode === "home" ? 1280 : 900, margin: "0 auto", padding: mode === "home" ? "0 24px" : "32px 24px" }}>
 
