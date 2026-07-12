@@ -5,15 +5,13 @@ import { NavLink } from "@/components/NavLink";
 const navItems = [
   { label: "Home", to: "/" },
   { label: "Study Guide", to: "/study-guide" },
-  { label: "Deeper Knowledge", to: "/deeper-knowledge" },
+  { label: "Task 4 Course", to: "/course" },
   { label: "Resources", to: "/resources" },
   { label: "CPD", to: "/cpd-calculator" },
   { label: "RE1 Key Individual", to: "/re1" },
   { label: "Community", to: "/community" },
   { label: "Blog", to: "/blog" },
 ];
-
-const ctaItem = { label: "RE5 Task 4 Course", to: "/course" };
 
 export function MainNav() {
   const [open, setOpen] = useState(false);
@@ -47,13 +45,6 @@ export function MainNav() {
                 {item.label}
               </NavLink>
             ))}
-            <NavLink
-              to={ctaItem.to}
-              className="ml-1 rounded-full bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/25"
-              activeClassName="bg-amber-500/25 text-amber-200"
-            >
-              {ctaItem.label}
-            </NavLink>
           </div>
 
           <button
@@ -83,14 +74,6 @@ export function MainNav() {
                     {item.label}
                   </NavLink>
                 ))}
-                <NavLink
-                  to={ctaItem.to}
-                  className="mt-1 rounded-2xl bg-amber-500/15 px-3 py-3 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/25"
-                  activeClassName="bg-amber-500/25 text-amber-200"
-                  onClick={() => setOpen(false)}
-                >
-                  {ctaItem.label}
-                </NavLink>
               </div>
             </nav>
           </div>
