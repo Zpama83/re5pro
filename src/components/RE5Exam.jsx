@@ -1136,6 +1136,15 @@ export default function RE5Exam() {
                       <div style={{ opacity: smartMode ? 0.4 : 1, pointerEvents: smartMode ? "none" : "auto" }}>
                         <label style={{ display: "block", fontSize: 12, color: "#c6c6cd", letterSpacing: 2, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, paddingLeft: 4 }}>Number of Questions: <span style={{ color: "#e9c176" }}>{numQuestions}</span></label>
                         <input type="range" min={10} max={Math.min(250, filtered.length)} value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} style={{ width: "100%", accentColor: "#e9c176" }} />
+                        {!smartMode && (
+                          <p style={{ margin: "8px 0 0", fontSize: 12, color: "#9090b0", lineHeight: 1.5 }}>
+                            This session covers <strong style={{ color: "#e9c176" }}>{numQuestions}</strong> of <strong style={{ color: "#d3e4fe" }}>{questions.length}</strong> questions.{" "}
+                            {questions.length - numQuestions > 0
+                              ? <>Work through the remaining <strong style={{ color: "#ffb4ab" }}>{questions.length - numQuestions}</strong> to train across every exam topic and maximise your readiness.</>
+                              : <span style={{ color: "#48c774" }}>You're covering the full bank — excellent preparation!</span>
+                            }
+                          </p>
+                        )}
                       </div>
                     </div>
 
