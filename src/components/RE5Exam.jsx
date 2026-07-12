@@ -1053,6 +1053,31 @@ export default function RE5Exam() {
           backdrop-filter: blur(12px);
           border: 1px solid rgba(144,144,151,0.12);
         }
+        @media (max-width: 640px) {
+          .rcp-hero-section { padding: 48px 0 32px !important; }
+          .rcp-hero-title { font-size: 28px !important; }
+          .rcp-hero-sub { font-size: 15px !important; }
+          .rcp-metric-val { font-size: 32px !important; }
+          .rcp-metric-card { padding: 20px !important; }
+          .rcp-configure-box { padding: 20px !important; }
+          .rcp-configure-heading { font-size: 20px !important; margin-bottom: 20px !important; }
+          .rcp-question-card { padding: 16px !important; }
+          .rcp-question-text { font-size: 16px !important; }
+          .rcp-option-btn { padding: 12px 14px !important; font-size: 14px !important; }
+          .rcp-results-score { font-size: 24px !important; }
+          .rcp-results-heading { font-size: 24px !important; }
+          .rcp-results-emoji { font-size: 40px !important; }
+          .rcp-results-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+          .rcp-results-grid > div { padding: 14px 8px !important; }
+          .rcp-bloom-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .rcp-task-grid { grid-template-columns: 1fr !important; }
+          .rcp-topic-grid { grid-template-columns: 1fr !important; }
+          .rcp-action-row { flex-direction: column !important; }
+          .rcp-start-btn { font-size: 16px !important; padding: 16px !important; }
+          .rcp-heatmap-box { padding: 16px !important; }
+          .rcp-review-card { padding: 14px !important; }
+          .rcp-next-btn { padding: 10px 24px !important; font-size: 14px !important; }
+        }
       `}</style>
 
       {/* Exam controls bar — only visible during exam or results */}
@@ -1063,27 +1088,27 @@ export default function RE5Exam() {
         </div>
       )}
 
-      <div className={mode === "home" ? "rcp-hero-bg" : ""} style={{ maxWidth: mode === "home" ? 1280 : 900, margin: "0 auto", padding: mode === "home" ? "0 24px" : "32px 24px" }}>
+      <div className={mode === "home" ? "rcp-hero-bg" : ""} style={{ maxWidth: mode === "home" ? 1280 : 900, margin: "0 auto", padding: mode === "home" ? "0 16px" : "24px 16px" }}>
 
         {/* HOME */}
         {mode === "home" && (
           <div>
             {/* Hero */}
-            <section style={{ padding: "96px 0 64px", textAlign: "center" }}>
+            <section className="rcp-hero-section" style={{ padding: "96px 0 64px", textAlign: "center" }}>
               <div style={{ display: "inline-flex", padding: 12, marginBottom: 32, borderRadius: 12, background: "#1b2b3f", border: "1px solid #45464d", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
                 <span style={{ fontSize: 32, color: "#e9c176" }}>📜</span>
               </div>
-              <h1 className="rcp-headline" style={{ fontSize: 48, fontWeight: 700, color: "#d3e4fe", margin: "0 0 16px", letterSpacing: -1, lineHeight: 1.1 }}>RE5 Practice Examination</h1>
-              <p style={{ fontSize: 18, lineHeight: 1.55, color: "#c6c6cd", maxWidth: 640, margin: "0 auto" }}>{questions.length} unique exam-grade questions across all FAIS topics.</p>
+              <h1 className="rcp-headline rcp-hero-title" style={{ fontSize: 48, fontWeight: 700, color: "#d3e4fe", margin: "0 0 16px", letterSpacing: -1, lineHeight: 1.1 }}>RE5 Practice Examination</h1>
+              <p className="rcp-hero-sub" style={{ fontSize: 18, lineHeight: 1.55, color: "#c6c6cd", maxWidth: 640, margin: "0 auto" }}>{questions.length} unique exam-grade questions across all FAIS topics.</p>
             </section>
 
             {/* Metrics bento */}
             <section style={{ marginBottom: 64 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
                 {[{ label: "Total Questions", val: questions.length, icon: "❓", color: "#e9c176" }, { label: "Topics Covered", val: topicCounts.length, icon: "📚", color: "#4edea3" }, { label: "Pass Mark", val: "66%", icon: "🎯", color: "#e9c176" }].map((s, i) => (
-                  <div key={i} className="rcp-glass" style={{ padding: 32, borderRadius: 12, textAlign: "center", transition: "all 0.3s" }}>
+                  <div key={i} className="rcp-glass rcp-metric-card" style={{ padding: 32, borderRadius: 12, textAlign: "center", transition: "all 0.3s" }}>
                     <div style={{ fontSize: 32, marginBottom: 16, color: s.color }}>{s.icon}</div>
-                    <div className="rcp-headline" style={{ fontSize: 48, fontWeight: 700, color: "#d3e4fe", lineHeight: 1 }}>{s.val}</div>
+                    <div className="rcp-headline rcp-metric-val" style={{ fontSize: 48, fontWeight: 700, color: "#d3e4fe", lineHeight: 1 }}>{s.val}</div>
                     <div style={{ fontSize: 12, color: "#c6c6cd", marginTop: 8, letterSpacing: 2, textTransform: "uppercase", fontWeight: 600 }}>{s.label}</div>
                   </div>
                 ))}
@@ -1101,9 +1126,9 @@ export default function RE5Exam() {
 
             {/* Configure Session */}
             <section style={{ paddingBottom: 96 }}>
-              <div style={{ background: "#102034", borderRadius: 16, padding: 48, border: "1px solid #45464d", boxShadow: "0 24px 64px rgba(0,0,0,0.4)", position: "relative", overflow: "hidden" }}>
+              <div className="rcp-configure-box" style={{ background: "#102034", borderRadius: 16, padding: 48, border: "1px solid #45464d", boxShadow: "0 24px 64px rgba(0,0,0,0.4)", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "relative", zIndex: 10 }}>
-                  <h2 className="rcp-headline" style={{ fontSize: 24, fontWeight: 600, color: "#e9c176", margin: "0 0 32px" }}>Configure Your Session</h2>
+                  <h2 className="rcp-headline rcp-configure-heading" style={{ fontSize: 24, fontWeight: 600, color: "#e9c176", margin: "0 0 32px" }}>Configure Your Session</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 48 }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                       <label style={{ display: "block", background: "#0b1c30", padding: 24, borderRadius: 12, border: `1px solid ${smartMode ? "rgba(233,193,118,0.6)" : "#45464d"}`, cursor: "pointer", transition: "all 0.2s" }}>
@@ -1146,7 +1171,7 @@ export default function RE5Exam() {
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <button onClick={() => startExam(false)} className="rcp-headline" style={{ width: "100%", background: "#e9c176", color: "#412d00", padding: "20px", borderRadius: 12, fontSize: 18, fontWeight: 600, cursor: "pointer", border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, transition: "all 0.2s" }}>
+                        <button onClick={() => startExam(false)} className="rcp-headline rcp-start-btn" style={{ width: "100%", background: "#e9c176", color: "#412d00", padding: "20px", borderRadius: 12, fontSize: 18, fontWeight: 600, cursor: "pointer", border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, transition: "all 0.2s" }}>
                           Start Practice Exam <span>▶</span>
                         </button>
                         {getWeakTaskIds(history).length > 0 && (
@@ -1168,7 +1193,7 @@ export default function RE5Exam() {
             <section style={{ paddingBottom: 64 }}>
               <div className="rcp-glass" style={{ borderRadius: 16, padding: 32 }}>
                 <h3 className="rcp-headline" style={{ color: "#e9c176", margin: "0 0 20px", fontSize: 20, fontWeight: 600 }}>Topics Covered</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+                <div className="rcp-topic-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
                   {topicCounts.map(({ topic, count }) => (
                     <div key={topic} style={{ background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ fontSize: 13, color: "#c6c6cd" }}>{topic}</span>
@@ -1209,12 +1234,12 @@ export default function RE5Exam() {
             </div>
 
             {/* Question card */}
-            <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 32, marginBottom: 24 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div className="rcp-question-card" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 32, marginBottom: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
                 <div style={{ fontSize: 11, color: "#7070a0", letterSpacing: 2 }}>QUESTION {currentIdx + 1}</div>
                 <div style={{ fontSize: 11, color: "#b8860b", background: "rgba(212,175,55,0.1)", padding: "2px 8px", borderRadius: 6 }}>📖 Explanation available</div>
               </div>
-              <p style={{ fontSize: 18, lineHeight: 1.6, color: "#e8e0d0", margin: 0 }}>{currentQ.q}</p>
+              <p className="rcp-question-text" style={{ fontSize: 18, lineHeight: 1.6, color: "#e8e0d0", margin: 0 }}>{currentQ.q}</p>
             </div>
 
             {/* Options */}
@@ -1229,7 +1254,7 @@ export default function RE5Exam() {
                   else { bg = "rgba(255,255,255,0.02)"; color = "#606080"; }
                 } else if (selected === i) { bg = "rgba(212,175,55,0.15)"; border = "1px solid #d4af37"; }
                 return (
-                  <button key={i} onClick={() => handleAnswer(i)} disabled={answered} style={{ background: bg, border, color, padding: "14px 20px", borderRadius: 10, textAlign: "left", cursor: answered ? "default" : "pointer", fontSize: 15, lineHeight: 1.4, transition: "all 0.2s", display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <button key={i} onClick={() => handleAnswer(i)} disabled={answered} className="rcp-option-btn" style={{ background: bg, border, color, padding: "14px 20px", borderRadius: 10, textAlign: "left", cursor: answered ? "default" : "pointer", fontSize: 15, lineHeight: 1.4, transition: "all 0.2s", display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <span style={{ minWidth: 24, height: 24, borderRadius: "50%", background: answered && i === currentQ.answer ? "#48c774" : answered && i === selected && selected !== currentQ.answer ? "#ff6b6b" : "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: "bold", color: answered ? "#0a0a1a" : "#9090b0", flexShrink: 0, marginTop: 1 }}>
                       {answered ? (i === currentQ.answer ? "✓" : i === selected ? "✗" : String.fromCharCode(65 + i)) : String.fromCharCode(65 + i)}
                     </span>
@@ -1244,7 +1269,7 @@ export default function RE5Exam() {
 
             {answered && (
               <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
-                <button onClick={nextQuestion} style={{ background: "linear-gradient(135deg, #d4af37, #b8860b)", border: "none", color: "#0a0a1a", padding: "12px 32px", borderRadius: 10, fontSize: 15, fontWeight: "bold", cursor: "pointer" }}>
+                <button onClick={nextQuestion} className="rcp-next-btn" style={{ background: "linear-gradient(135deg, #d4af37, #b8860b)", border: "none", color: "#0a0a1a", padding: "12px 32px", borderRadius: 10, fontSize: 15, fontWeight: "bold", cursor: "pointer" }}>
                   {currentIdx + 1 >= examQuestions.length ? "View Results →" : "Next Question →"}
                 </button>
               </div>
@@ -1256,28 +1281,28 @@ export default function RE5Exam() {
         {mode === "results" && (
           <div>
             <div style={{ textAlign: "center", marginBottom: 40 }}>
-              <div style={{ fontSize: 60, marginBottom: 16 }}>{passed ? "🏆" : "📖"}</div>
-              <h2 style={{ fontSize: 32, color: passed ? "#48c774" : "#ff6b6b", margin: "0 0 8px" }}>{passed ? "PASSED!" : "Not Yet — Keep Studying"}</h2>
+              <div className="rcp-results-emoji" style={{ fontSize: 60, marginBottom: 16 }}>{passed ? "🏆" : "📖"}</div>
+              <h2 className="rcp-results-heading" style={{ fontSize: 32, color: passed ? "#48c774" : "#ff6b6b", margin: "0 0 8px" }}>{passed ? "PASSED!" : "Not Yet — Keep Studying"}</h2>
               <p style={{ color: "#9090b0", margin: 0 }}>You scored {score} out of {examQuestions.length} ({pct}%)</p>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 40 }}>
+            <div className="rcp-results-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 40 }}>
               {[{ l: "Correct", v: score, c: "#48c774" }, { l: "Incorrect", v: examQuestions.length - score, c: "#ff6b6b" }, { l: "Score", v: `${pct}%`, c: passed ? "#48c774" : "#ff6b6b" }].map((s, i) => (
                 <div key={i} style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${s.c}40`, borderRadius: 12, padding: 24, textAlign: "center" }}>
-                  <div style={{ fontSize: 36, fontWeight: "bold", color: s.c }}>{s.v}</div>
+                  <div className="rcp-results-score" style={{ fontSize: 36, fontWeight: "bold", color: s.c }}>{s.v}</div>
                   <div style={{ fontSize: 13, color: "#9090b0" }}>{s.l}</div>
                 </div>
               ))}
             </div>
 
             {/* Competency Heatmap */}
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 24, marginBottom: 24 }}>
+            <div className="rcp-heatmap-box" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 24, marginBottom: 24 }}>
               <h3 style={{ color: "#d4af37", marginTop: 0, fontSize: 18 }}>🔥 Competency Heatmap</h3>
               <p style={{ fontSize: 12, color: "#9090b0", marginTop: 0 }}>Proficiency by FSCA Task and Bloom complexity level.</p>
 
               <div style={{ marginBottom: 18 }}>
                 <div style={{ fontSize: 13, color: "#c0c0d0", marginBottom: 8, fontWeight: "bold" }}>By Task</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+                <div className="rcp-task-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
                   {Object.entries(TASK_LABELS).map(([taskId, label]) => {
                     const data = taskScores[taskId];
                     if (!data) return (
@@ -1299,7 +1324,7 @@ export default function RE5Exam() {
 
               <div>
                 <div style={{ fontSize: 13, color: "#c0c0d0", marginBottom: 8, fontWeight: "bold" }}>By Complexity (Bloom)</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                <div className="rcp-bloom-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                   {[1, 2, 3, 4].map(level => {
                     const data = levelScores[level];
                     const p = data ? Math.round((data.correct / data.total) * 100) : 0;
@@ -1338,7 +1363,7 @@ export default function RE5Exam() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
+            <div className="rcp-action-row" style={{ display: "flex", gap: 12, marginBottom: 32 }}>
               <button onClick={() => setShowReview(!showReview)} style={{ flex: 1, background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.4)", color: "#d4af37", padding: 14, borderRadius: 10, cursor: "pointer", fontSize: 15 }}>
                 {showReview ? "Hide Review" : "Review Answers & Explanations"}
               </button>
@@ -1350,7 +1375,7 @@ export default function RE5Exam() {
             {showReview && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {results.map((r, i) => (
-                  <div key={i} style={{ background: r.correct ? "rgba(72,199,116,0.08)" : "rgba(255,107,107,0.08)", border: `1px solid ${r.correct ? "rgba(72,199,116,0.3)" : "rgba(255,107,107,0.3)"}`, borderRadius: 12, padding: 20 }}>
+                  <div key={i} className="rcp-review-card" style={{ background: r.correct ? "rgba(72,199,116,0.08)" : "rgba(255,107,107,0.08)", border: `1px solid ${r.correct ? "rgba(72,199,116,0.3)" : "rgba(255,107,107,0.3)"}`, borderRadius: 12, padding: 20 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                       <span style={{ fontSize: 12, color: "#9090b0" }}>Q{i + 1} · {r.q.topic}</span>
                       <span style={{ fontSize: 12, color: r.correct ? "#48c774" : "#ff6b6b" }}>{r.correct ? "✓ Correct" : "✗ Incorrect"}</span>
