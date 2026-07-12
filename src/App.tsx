@@ -31,6 +31,7 @@ import TermsPage from "./pages/TermsPage";
 import CookiePolicyPage from "./pages/CookiePolicyPage";
 import { Footer } from "./components/Footer";
 import { CookieConsent } from "./components/CookieConsent";
+import { MainNav } from "./components/MainNav";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <MainNav />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/course" element={<CoursePage />} />

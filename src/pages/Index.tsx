@@ -34,16 +34,16 @@ const Index = () => {
 
   return (
     <div style={{ background: "#031427", color: "#d3e4fe", minHeight: "100vh" }}>
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "44px 24px 24px" }}>
+      <section style={{ maxWidth: "min(1100px, 100%)", margin: "0 auto", padding: "36px 20px 24px" }}>
         <div style={{ display: "grid", gap: 28 }}>
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 20, padding: "36px 36px 30px", boxShadow: "0 18px 50px rgba(0,0,0,0.25)" }}>
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 20, padding: "32px 28px 28px", boxShadow: "0 18px 50px rgba(0,0,0,0.25)" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div>
                 <p style={{ color: "#e9c176", fontSize: 13, letterSpacing: 2, textTransform: "uppercase", margin: 0, fontWeight: 700 }}>RE5 & RE1 Exam Prep</p>
-                <h1 style={{ fontSize: 42, lineHeight: 1.05, margin: "16px 0 16px", color: "#f5f7ff" }}>
+                <h1 style={{ fontSize: "clamp(2.2rem, 5vw, 3.25rem)", lineHeight: 1.05, margin: "16px 0 16px", color: "#f5f7ff" }}>
                   Free, exam-focused training for the FSCA RE5 and RE1 exams.
                 </h1>
-                <p style={{ fontSize: 18, color: "#bfc9e1", lineHeight: 1.75, maxWidth: 760 }}>
+                <p style={{ fontSize: "clamp(1rem, 2vw, 1.125rem)", color: "#bfc9e1", lineHeight: 1.75, maxWidth: 760 }}>
                   Build real regulatory confidence with an interactive question bank, detailed explanations, and structured study guidance. This platform is designed to help South African financial services professionals learn the law, understand exam-style scenarios, and prepare with current FSCA terminology.
                 </p>
               </div>
