@@ -2,6 +2,32 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { getMetadata, buildSmartExam, TASK_LABELS, LEVEL_LABELS, FSCA_DISTRIBUTION } from "@/data/questionMetadata";
 
+// --- Cross-session progress persistence (localStorage) ---
+const HISTORY_KEY = 're5pro-history';
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveToHistory(entry) {
+  try {
+    const h = loadHistory();
+    h.unshift(entry);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 30)));
+  } catch {}
+}
+function getWeakTaskIds(history) {
+  const agg = {};
+  history.forEach(h => {
+    Object.entries(h.taskScores || {}).forEach(([tid, s]) => {
+      if (!agg[tid]) agg[tid] = { correct: 0, total: 0 };
+      agg[tid].correct += s.correct;
+      agg[tid].total += s.total;
+    });
+  });
+  return Object.entries(agg)
+    .filter(([, s]) => s.total >= 3 && Math.round((s.correct / s.total) * 100) < 70)
+    .map(([tid]) => Number(tid));
+}
+
 // Exported for the data-quality test suite (src/data/__tests__).
 export const questions = [
   // FAIS ACT - DEFINITIONS & SCOPE
@@ -738,6 +764,97 @@ export const explanations = {
 
 const TOPICS = ["All Topics", ...Array.from(new Set(questions.map(q => q.topic)))];
 
+function ProgressWidget({ history, weakTaskIds, onTrainWeak }) {
+  const recent = [...history].slice(0, 10).reverse();
+  const avgPct = Math.round(history.reduce((a, h) => a + h.pct, 0) / history.length);
+  const best = Math.max(...history.map(h => h.pct));
+  const totalQs = history.reduce((a, h) => a + h.total, 0);
+
+  const allTaskAgg = {};
+  history.forEach(h => {
+    Object.entries(h.taskScores || {}).forEach(([tid, s]) => {
+      if (!allTaskAgg[tid]) allTaskAgg[tid] = { correct: 0, total: 0 };
+      allTaskAgg[tid].correct += s.correct;
+      allTaskAgg[tid].total += s.total;
+    });
+  });
+
+  return (
+    <section style={{ marginBottom: 48 }}>
+      <div style={{ background: "rgba(16,32,52,0.6)", border: "1px solid rgba(144,144,151,0.12)", borderRadius: 16, padding: 32, backdropFilter: "blur(12px)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+          <h3 style={{ color: "#e9c176", margin: 0, fontSize: 18, fontWeight: 600, fontFamily: "'Montserrat', 'Inter', sans-serif" }}>📈 Your Progress</h3>
+          <div style={{ display: "flex", gap: 24, fontSize: 13 }}>
+            <span style={{ color: "#9fb4d6" }}>Sessions: <strong style={{ color: "#d3e4fe" }}>{history.length}</strong></span>
+            <span style={{ color: "#9pb4d6" }}>Avg: <strong style={{ color: avgPct >= 66 ? "#48c774" : "#ff6b6b" }}>{avgPct}%</strong></span>
+            <span style={{ color: "#9fb4d6" }}>Best: <strong style={{ color: "#e9c176" }}>{best}%</strong></span>
+            <span style={{ color: "#9fb4d6" }}>Questions done: <strong style={{ color: "#d3e4fe" }}>{totalQs}</strong></span>
+          </div>
+        </div>
+
+        {/* Score trend bars */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 12, color: "#6a7a9b", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>Recent sessions (oldest → newest)</div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 56 }}>
+            {recent.map((h, i) => {
+              const color = h.pct >= 66 ? "#48c774" : h.pct >= 50 ? "#e9c176" : "#ff6b6b";
+              const barH = Math.max(8, Math.round((h.pct / 100) * 56));
+              return (
+                <div key={i} title={`${new Date(h.date).toLocaleDateString("en-ZA")} — ${h.pct}% (${h.score}/${h.total})`}
+                  style={{ flex: 1, minWidth: 18, height: barH, background: color, borderRadius: "3px 3px 0 0", opacity: 0.85, transition: "opacity 0.2s", cursor: "default" }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                  onMouseLeave={e => e.currentTarget.style.opacity = "0.85"}
+                />
+              );
+            })}
+            {recent.length < 10 && Array.from({ length: 10 - recent.length }).map((_, i) => (
+              <div key={`e${i}`} style={{ flex: 1, minWidth: 18, height: 4, background: "rgba(255,255,255,0.06)", borderRadius: "3px 3px 0 0" }} />
+            ))}
+          </div>
+          <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginTop: 2 }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#6a7a9b", marginTop: 4 }}>
+            <span>66% pass mark</span>
+            <span style={{ color: "#48c774" }}>■ Pass</span>
+            <span style={{ color: "#e9c176" }}>■ Close</span>
+            <span style={{ color: "#ff6b6b" }}>■ Needs work</span>
+          </div>
+        </div>
+
+        {/* Task breakdown */}
+        {Object.keys(allTaskAgg).length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, color: "#6a7a9b", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>Cumulative performance by FAIS task</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>
+              {Object.entries(allTaskAgg).map(([tid, s]) => {
+                const p = Math.round((s.correct / s.total) * 100);
+                const color = p >= 80 ? "#48c774" : p >= 66 ? "#e9c176" : p >= 40 ? "#f0883e" : "#ff6b6b";
+                const isWeak = weakTaskIds.includes(Number(tid));
+                return (
+                  <div key={tid} style={{ background: `${color}12`, border: `1px solid ${color}40`, borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "#c0c0d0" }}>{TASK_LABELS[tid] || `Task ${tid}`}{isWeak ? " ⚠️" : ""}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color }}>{p}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Train Weak Areas CTA */}
+        {weakTaskIds.length > 0 ? (
+          <button onClick={onTrainWeak} style={{ background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.4)", color: "#ffb4ab", padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", textAlign: "center" }}>
+            🎯 Train Weak Areas — Focus on {weakTaskIds.length} task{weakTaskIds.length > 1 ? "s" : ""} below 70%
+          </button>
+        ) : history.length >= 2 ? (
+          <div style={{ background: "rgba(72,199,116,0.08)", border: "1px solid rgba(72,199,116,0.3)", borderRadius: 10, padding: "12px 20px", fontSize: 13, color: "#48c774", textAlign: "center" }}>
+            🏆 Strong in all areas! Keep going with a Smart Mock to maintain your edge.
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function ExplanationPanel({ question, selectedAnswer }) {
   const isCorrect = selectedAnswer === question.answer;
   const exp = explanations[question.id];
@@ -799,6 +916,8 @@ export default function RE5Exam() {
   const [timerActive, setTimerActive] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [smartMode, setSmartMode] = useState(false);
+  const [history, setHistory] = useState(() => loadHistory());
+  const [weakTopicMode, setWeakTopicMode] = useState(false);
   const timerRef = useRef(null);
 
   const filtered = selectedTopic === "All Topics" ? questions : questions.filter(q => q.topic === selectedTopic);
@@ -812,10 +931,44 @@ export default function RE5Exam() {
     return () => clearTimeout(timerRef.current);
   }, [timerActive, timeLeft]);
 
-  function startExam() {
-    const pool = smartMode
-      ? buildSmartExam(questions)
-      : [...filtered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, filtered.length));
+  // Save completed session to history
+  useEffect(() => {
+    if (mode !== "results" || results.length === 0) return;
+    const ts = {};
+    results.forEach(r => {
+      const meta = getMetadata(r.q);
+      if (!ts[meta.taskId]) ts[meta.taskId] = { correct: 0, total: 0 };
+      ts[meta.taskId].total += 1;
+      if (r.correct) ts[meta.taskId].correct += 1;
+    });
+    const pctVal = Math.round((score / results.length) * 100);
+    const entry = {
+      date: new Date().toISOString(),
+      score,
+      total: results.length,
+      pct: pctVal,
+      passed: pctVal >= 66,
+      examType,
+      taskScores: ts,
+    };
+    saveToHistory(entry);
+    setHistory(loadHistory());
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function startExam(trainWeak = false) {
+    let pool;
+    if (trainWeak) {
+      setWeakTopicMode(true);
+      const weakIds = getWeakTaskIds(history);
+      const weakFiltered = weakIds.length > 0
+        ? filtered.filter(q => weakIds.includes(getMetadata(q).taskId))
+        : filtered;
+      pool = [...weakFiltered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, weakFiltered.length));
+    } else if (smartMode) {
+      pool = buildSmartExam(questions);
+    } else {
+      pool = [...filtered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, filtered.length));
+    }
     setExamQuestions(pool);
     setCurrentIdx(0);
     setSelected(null);
@@ -823,7 +976,7 @@ export default function RE5Exam() {
     setScore(0);
     setResults([]);
     setShowReview(false);
-    setTimeLeft((smartMode ? 50 : numQuestions) * 72);
+    setTimeLeft(pool.length * 144);
     setTimerActive(true);
     setMode("exam");
   }
@@ -947,6 +1100,15 @@ export default function RE5Exam() {
               </div>
             </section>
 
+            {/* Progress widget — only shown when there's history */}
+            {history.length > 0 && (
+              <ProgressWidget
+                history={history}
+                weakTaskIds={getWeakTaskIds(history)}
+                onTrainWeak={() => { setSmartMode(false); startExam(true); }}
+              />
+            )}
+
             {/* Configure Session */}
             <section style={{ paddingBottom: 96 }}>
               <div style={{ background: "#102034", borderRadius: 16, padding: 48, border: "1px solid #45464d", boxShadow: "0 24px 64px rgba(0,0,0,0.4)", position: "relative", overflow: "hidden" }}>
@@ -980,14 +1142,19 @@ export default function RE5Exam() {
                     <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 24 }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12, color: "#4edea3" }}><span style={{ fontSize: 18 }}>✓</span><span style={{ fontSize: 14, fontWeight: 500 }}>Verified FSCA Exam Standards</span></div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, color: "#c6c6cd" }}><span style={{ fontSize: 18 }}>⏱</span><span style={{ fontSize: 14, fontWeight: 500 }}>Timed environment simulation — {Math.round((smartMode ? 50 : numQuestions) * 72 / 60)} minutes</span></div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, color: "#c6c6cd" }}><span style={{ fontSize: 18 }}>⏱</span><span style={{ fontSize: 14, fontWeight: 500 }}>Timed environment simulation — {Math.round((smartMode ? 50 : numQuestions) * 144 / 60)} minutes</span></div>
                         <div style={{ display: "flex", alignItems: "center", gap: 12, color: "#c6c6cd" }}><span style={{ fontSize: 18 }}>📖</span><span style={{ fontSize: 14, fontWeight: 500 }}>Detailed explanation for every answer</span></div>
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <button onClick={startExam} className="rcp-headline" style={{ width: "100%", background: "#e9c176", color: "#412d00", padding: "20px", borderRadius: 12, fontSize: 18, fontWeight: 600, cursor: "pointer", border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, transition: "all 0.2s" }}>
+                        <button onClick={() => startExam(false)} className="rcp-headline" style={{ width: "100%", background: "#e9c176", color: "#412d00", padding: "20px", borderRadius: 12, fontSize: 18, fontWeight: 600, cursor: "pointer", border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, transition: "all 0.2s" }}>
                           Start Practice Exam <span>▶</span>
                         </button>
+                        {getWeakTaskIds(history).length > 0 && (
+                          <button onClick={() => { setSmartMode(false); startExam(true); }} style={{ width: "100%", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.45)", color: "#ffb4ab", padding: "14px 0", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5 }}>
+                            🎯 Train Weak Areas ({getWeakTaskIds(history).length} task{getWeakTaskIds(history).length > 1 ? "s" : ""} below 70%)
+                          </button>
+                        )}
                         <Link to="/study-guide" style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(233,193,118,0.08)", border: "1px solid rgba(233,193,118,0.4)", color: "#e9c176", padding: "14px 0", borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: "none", letterSpacing: 1 }}>📖 OPEN STUDY GUIDE</Link>
                         <Link to="/deeper-knowledge" style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(78,222,163,0.06)", border: "1px solid rgba(78,222,163,0.35)", color: "#4edea3", padding: "14px 0", borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: "none", letterSpacing: 1 }}>🧭 DEEPER KNOWLEDGE</Link>
                       </div>
