@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import type { DKTopic, DKSimulator } from "@/types/deeperKnowledge";
+import type { DKTopic, DKSimulator, DKQuizQuestion } from "@/types/deeperKnowledge";
 import { useDKProgress } from "@/hooks/useDKProgress";
 import { deeperKnowledgeTopics } from "@/data/deeperKnowledgeTopics";
 
@@ -336,6 +336,12 @@ function TopicView({ slug }: { slug: string }) {
           </div>
         </div>
       </Section>
+
+      {topic.quiz && topic.quiz.length > 0 && (
+        <Section title={`Exam-Grade Quiz — ${topic.quiz.length} Questions`}>
+          <Quiz questions={topic.quiz} />
+        </Section>
+      )}
     </Shell>
   );
 }
@@ -594,6 +600,296 @@ function Simulator({ data }: { data: DKSimulator }) {
             >
               ↻ Try again
             </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Quiz({ questions }: { questions: DKQuizQuestion[] }) {
+  const [current, setCurrent] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [answered, setAnswered] = useState<boolean[]>(Array(questions.length).fill(false));
+  const [correct, setCorrect] = useState<boolean[]>(Array(questions.length).fill(false));
+  const [showExplanation, setShowExplanation] = useState(false);
+
+  const q = questions[current];
+  const isCorrect = selected === q.correctIndex;
+  const total = questions.length;
+  const answeredCount = answered.filter(Boolean).length;
+  const correctCount = correct.filter(Boolean).length;
+  const allDone = answeredCount === total;
+  const pct = allDone ? Math.round((correctCount / total) * 100) : 0;
+
+  const handleSelect = (idx: number) => {
+    if (answered[current]) return;
+    setSelected(idx);
+    setShowExplanation(true);
+    const newAnswered = [...answered];
+    newAnswered[current] = true;
+    setAnswered(newAnswered);
+    const newCorrect = [...correct];
+    newCorrect[current] = idx === q.correctIndex;
+    setCorrect(newCorrect);
+  };
+
+  const goTo = (idx: number) => {
+    setCurrent(idx);
+    setSelected(null);
+    setShowExplanation(false);
+  };
+
+  const reset = () => {
+    setCurrent(0);
+    setSelected(null);
+    setAnswered(Array(questions.length).fill(false));
+    setCorrect(Array(questions.length).fill(false));
+    setShowExplanation(false);
+  };
+
+  return (
+    <div>
+      {/* Progress bar */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+        {questions.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => goTo(i)}
+            style={{
+              flex: 1,
+              height: 6,
+              borderRadius: 3,
+              border: "none",
+              cursor: "pointer",
+              background: !answered[i]
+                ? current === i
+                  ? C.gold
+                  : C.borderSoft
+                : correct[i]
+                  ? C.good
+                  : C.bad,
+              opacity: current === i ? 1 : 0.7,
+            }}
+            title={`Question ${i + 1}`}
+          />
+        ))}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 14,
+        }}
+      >
+        <span style={{ color: C.textDim, fontSize: 13 }}>
+          Question {current + 1} of {total} — {answeredCount} answered, {correctCount} correct
+        </span>
+        {allDone && (
+          <span
+            style={{
+              color: pct >= 66 ? C.good : C.bad,
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            {pct}% {pct >= 66 ? "PASSED" : "FAILED"} (66% required)
+          </span>
+        )}
+      </div>
+
+      {/* Question */}
+      <div
+        style={{
+          background: C.panel2,
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 10,
+          padding: 18,
+          marginBottom: 14,
+        }}
+      >
+        <div style={{ color: C.text, fontSize: 15, lineHeight: 1.65, fontWeight: 600, marginBottom: 16 }}>
+          {q.question}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {q.options.map((opt, i) => {
+            const isThis = answered[current] && i === selected;
+            const isAnswer = answered[current] && i === q.correctIndex;
+            let bg = "transparent";
+            let borderColor = C.borderSoft;
+            let textColor = C.text;
+
+            if (answered[current]) {
+              if (isAnswer) {
+                bg = `${C.good}18`;
+                borderColor = C.good;
+                textColor = C.good;
+              } else if (isThis && !isCorrect) {
+                bg = `${C.bad}18`;
+                borderColor = C.bad;
+                textColor = C.bad;
+              }
+            }
+
+            return (
+              <button
+                key={i}
+                onClick={() => handleSelect(i)}
+                style={{
+                  textAlign: "left",
+                  background: bg,
+                  border: `1px solid ${borderColor}`,
+                  color: textColor,
+                  padding: "12px 14px",
+                  borderRadius: 8,
+                  cursor: answered[current] ? "default" : "pointer",
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
+                }}
+                onMouseEnter={(e) => {
+                  if (!answered[current]) e.currentTarget.style.borderColor = C.gold;
+                }}
+                onMouseLeave={(e) => {
+                  if (!answered[current]) e.currentTarget.style.borderColor = C.borderSoft;
+                }}
+              >
+                <span
+                  style={{
+                    minWidth: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    border: `2px solid ${answered[current] && isAnswer ? C.good : answered[current] && isThis ? C.bad : C.borderSoft}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    background: answered[current] && isAnswer ? `${C.good}22` : "transparent",
+                    color: answered[current] && isAnswer ? C.good : C.textDim,
+                  }}
+                >
+                  {String.fromCharCode(65 + i)}
+                </span>
+                <span>{opt}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Explanation */}
+        {showExplanation && answered[current] && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 14,
+              background: isCorrect ? `${C.good}10` : `${C.bad}10`,
+              border: `1px solid ${isCorrect ? C.good : C.bad}44`,
+              borderRadius: 8,
+            }}
+          >
+            <div
+              style={{
+                color: correct[current] ? C.good : C.bad,
+                fontSize: 13,
+                fontWeight: 700,
+                marginBottom: 6,
+              }}
+            >
+              {correct[current] ? "Correct!" : "Incorrect"}
+            </div>
+            <div style={{ color: C.text, fontSize: 13, lineHeight: 1.6 }}>{q.explanation}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button
+          onClick={() => current > 0 && goTo(current - 1)}
+          disabled={current === 0}
+          style={{
+            background: "transparent",
+            border: `1px solid ${current === 0 ? C.borderSoft : C.gold}`,
+            color: current === 0 ? C.textDim : C.gold,
+            padding: "8px 16px",
+            borderRadius: 8,
+            cursor: current === 0 ? "default" : "pointer",
+            fontSize: 13,
+          }}
+        >
+          Previous
+        </button>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          {allDone && (
+            <button
+              onClick={reset}
+              style={{
+                background: "transparent",
+                border: `1px solid ${C.gold}`,
+                color: C.gold,
+                padding: "8px 16px",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 13,
+              }}
+            >
+              Retry Quiz
+            </button>
+          )}
+          <button
+            onClick={() => current < total - 1 && goTo(current + 1)}
+            disabled={current === total - 1}
+            style={{
+              background: current === total - 1 ? "transparent" : `${C.gold}22`,
+              border: `1px solid ${current === total - 1 ? C.borderSoft : C.gold}`,
+              color: current === total - 1 ? C.textDim : C.gold,
+              padding: "8px 16px",
+              borderRadius: 8,
+              cursor: current === total - 1 ? "default" : "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
+      {/* Results summary when complete */}
+      {allDone && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 18,
+            background: pct >= 66 ? `${C.good}10` : `${C.bad}10`,
+            border: `1px solid ${pct >= 66 ? C.good : C.bad}44`,
+            borderRadius: 10,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 36, marginBottom: 8 }}>{pct >= 66 ? "🎉" : "📚"}</div>
+          <div
+            style={{
+              color: pct >= 66 ? C.good : C.bad,
+              fontSize: 20,
+              fontWeight: 700,
+              marginBottom: 6,
+            }}
+          >
+            {pct}% — {correctCount}/{total} Correct
+          </div>
+          <div style={{ color: C.textDim, fontSize: 14, lineHeight: 1.6 }}>
+            {pct >= 66
+              ? "You passed! You've demonstrated solid understanding of this topic. Keep it up!"
+              : `You need 66% to pass the RE5 exam. Review the sections above and try again.`}
           </div>
         </div>
       )}

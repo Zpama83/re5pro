@@ -1,6 +1,7 @@
 import type { DKTopic } from "@/types/deeperKnowledge";
+import { deeperKnowledgeQuizzes } from "./deeperKnowledgeQuizzes";
 
-export const deeperKnowledgeTopics: DKTopic[] = [
+const _topics: DKTopic[] = [
   {
     id: "ch1-fais-act",
     slug: "fais-act-regulatory-framework",
@@ -1047,3 +1048,8 @@ export const deeperKnowledgeTopics: DKTopic[] = [
     },
   },
 ];
+
+export const deeperKnowledgeTopics: DKTopic[] = _topics.map((t) => ({
+  ...t,
+  quiz: deeperKnowledgeQuizzes[t.id] ?? [],
+}));

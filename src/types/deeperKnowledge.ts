@@ -37,6 +37,13 @@ export interface DKPrinciple {
   consumerHarm: string;
 }
 
+export interface DKQuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
 export interface DKExamRelevance {
   frequencyInExams: string;
   sampleQuestions: string[];
@@ -58,4 +65,5 @@ export interface DKTopic {
   scenarios: DKScenario[];
   simulator: DKSimulator | null;
   exam_relevance: DKExamRelevance;
+  quiz?: DKQuizQuestion[];
 }
