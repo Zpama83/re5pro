@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import type { DKTopic, DKSimulator } from "@/types/deeperKnowledge";
 import { useDKProgress } from "@/hooks/useDKProgress";
+import { deeperKnowledgeTopics } from "@/data/deeperKnowledgeTopics";
 
 /* ------- design tokens (inline to match RE5Exam visual language) ------- */
 const C = {
@@ -29,27 +29,11 @@ export default function DeeperKnowledge() {
 }
 
 function TopicList() {
-  const [topics, setTopics] = useState<DKTopic[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const topics = deeperKnowledgeTopics;
   const { bookmarks, mastered, isMastered } = useDKProgress();
   const [filter, setFilter] = useState<"all" | "bookmarked" | "mastered">("all");
 
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from("dk_topics")
-        .select("*")
-        .order("sort_order", { ascending: true });
-      if (error) {
-        console.error("Failed to load topics:", error);
-        setError("Failed to load topics. Please try again.");
-      }
-      else setTopics((data as unknown as DKTopic[]) ?? []);
-    })();
-  }, []);
-
   const visible = useMemo(() => {
-    if (!topics) return [];
     if (filter === "bookmarked") return topics.filter((t) => bookmarks.includes(t.id));
     if (filter === "mastered") return topics.filter((t) => mastered.includes(t.id));
     return topics;
@@ -64,7 +48,7 @@ function TopicList() {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
         {[
-          ["all", `All (${topics?.length ?? 0})`],
+          ["all", `All (${topics.length})`],
           ["bookmarked", `★ Bookmarked (${bookmarks.length})`],
           ["mastered", `✓ Mastered (${mastered.length})`],
         ].map(([k, label]) => (
@@ -86,9 +70,7 @@ function TopicList() {
         ))}
       </div>
 
-      {error && <ErrorBox message={error} />}
-      {!topics && !error && <SkeletonGrid />}
-      {topics && (
+      {(
         <div
           style={{
             display: "grid",
@@ -168,30 +150,12 @@ function TopicList() {
 /* ===================================================================== */
 function TopicView({ slug }: { slug: string }) {
   const navigate = useNavigate();
-  const [topic, setTopic] = useState<DKTopic | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [allTopics, setAllTopics] = useState<DKTopic[]>([]);
   const { isBookmarked, toggleBookmark, isMastered, toggleMastered } = useDKProgress();
 
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.from("dk_topics").select("*");
-      if (error) {
-        console.error("Failed to load topic:", error);
-        setError("Failed to load topic. Please try again.");
-      }
-      else {
-        const list = (data as unknown as DKTopic[]) ?? [];
-        setAllTopics(list);
-        const found = list.find((t) => t.slug === slug);
-        setTopic(found ?? null);
-        if (!found) setError("Topic not found.");
-      }
-    })();
-  }, [slug]);
+  const allTopics = deeperKnowledgeTopics;
+  const topic = allTopics.find((t) => t.slug === slug) ?? null;
 
-  if (error) return <Shell><ErrorBox message={error} /></Shell>;
-  if (!topic) return <Shell><SkeletonGrid /></Shell>;
+  if (!topic) return <Shell><ErrorBox message="Topic not found." /></Shell>;
 
   const related = topic.related_concepts
     .map((id) => allTopics.find((t) => t.id === id))
