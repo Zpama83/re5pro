@@ -4,6 +4,7 @@ import { getMetadata, buildSmartExam, TASK_LABELS, LEVEL_LABELS, FSCA_DISTRIBUTI
 
 // --- Cross-session progress persistence (localStorage) ---
 const HISTORY_KEY = 're5pro-history';
+const MISSED_KEY = 're5pro-missed';
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
 }
@@ -26,6 +27,75 @@ function getWeakTaskIds(history) {
   return Object.entries(agg)
     .filter(([, s]) => s.total >= 3 && Math.round((s.correct / s.total) * 100) < 70)
     .map(([tid]) => Number(tid));
+}
+
+// --- Spaced repetition: track missed questions ---
+function loadMissed() {
+  try { return JSON.parse(localStorage.getItem(MISSED_KEY) || '{}'); } catch { return {}; }
+}
+function saveMissedFromResults(results) {
+  try {
+    const missed = loadMissed();
+    results.forEach(r => {
+      const qid = String(r.q.id);
+      if (!r.correct) {
+        if (!missed[qid]) missed[qid] = { wrongCount: 0, lastSeen: null, correctStreak: 0 };
+        missed[qid].wrongCount += 1;
+        missed[qid].lastSeen = Date.now();
+        missed[qid].correctStreak = 0;
+      } else if (missed[qid]) {
+        missed[qid].correctStreak = (missed[qid].correctStreak || 0) + 1;
+        missed[qid].lastSeen = Date.now();
+        if (missed[qid].correctStreak >= 3) delete missed[qid];
+      }
+    });
+    localStorage.setItem(MISSED_KEY, JSON.stringify(missed));
+  } catch {}
+}
+function getMissedQuestionIds() {
+  const missed = loadMissed();
+  return Object.entries(missed)
+    .sort((a, b) => b[1].wrongCount - a[1].wrongCount)
+    .map(([id]) => Number(id));
+}
+function getMissedCount() {
+  return Object.keys(loadMissed()).length;
+}
+
+// --- Exam Readiness Score ---
+function calcReadiness(history) {
+  if (history.length === 0) return { score: 0, level: "Not Started", details: {}, recommendation: "Start practicing to build your readiness score." };
+  const taskAgg = {};
+  history.forEach(h => {
+    Object.entries(h.taskScores || {}).forEach(([tid, s]) => {
+      if (!taskAgg[tid]) taskAgg[tid] = { correct: 0, total: 0 };
+      taskAgg[tid].correct += s.correct;
+      taskAgg[tid].total += s.total;
+    });
+  });
+  const taskIds = [1, 2, 3, 4, 5, 6, 7, 8];
+  const tasksCovered = taskIds.filter(t => taskAgg[t] && taskAgg[t].total >= 3).length;
+  const coverageScore = Math.min(25, Math.round((tasksCovered / 8) * 25));
+  const recentSessions = history.slice(0, 5);
+  const recentAvg = recentSessions.reduce((a, h) => a + h.pct, 0) / recentSessions.length;
+  const accuracyScore = Math.min(30, Math.round((recentAvg / 100) * 30));
+  const allCorrect = history.reduce((a, h) => a + h.score, 0);
+  const allTotal = history.reduce((a, h) => a + h.total, 0);
+  const volumeRatio = Math.min(allTotal / 500, 1);
+  const volumeScore = Math.min(20, Math.round(volumeRatio * 20));
+  const passedCount = history.filter(h => h.passed).length;
+  const consistencyScore = Math.min(15, Math.round((passedCount / Math.max(history.length, 1)) * 15));
+  const weakCount = getWeakTaskIds(history).length;
+  const weakPenalty = Math.min(10, weakCount * 3);
+  const gapScore = 10 - weakPenalty;
+  const total = coverageScore + accuracyScore + volumeScore + consistencyScore + gapScore;
+  let level, recommendation;
+  if (total >= 85) { level = "Exam Ready"; recommendation = "You're ready to book your exam. Consider one final 50-question mock to confirm."; }
+  else if (total >= 70) { level = "Almost There"; recommendation = "Focus on weak areas and do 2-3 more full mock exams to solidify your knowledge."; }
+  else if (total >= 50) { level = "Building Momentum"; recommendation = "Keep practicing daily. Work through the Deeper Knowledge topics for areas below 70%."; }
+  else if (total >= 25) { level = "Getting Started"; recommendation = "You're on the right track. Aim for at least 5 practice sessions covering all 8 FAIS tasks."; }
+  else { level = "Just Beginning"; recommendation = "Start with the Study Guide, then work through practice exams topic by topic."; }
+  return { score: total, level, details: { coverage: coverageScore, accuracy: accuracyScore, volume: volumeScore, consistency: consistencyScore, gaps: gapScore }, recommendation };
 }
 
 // Exported for the data-quality test suite (src/data/__tests__).
@@ -855,6 +925,84 @@ function ProgressWidget({ history, weakTaskIds, onTrainWeak }) {
   );
 }
 
+function ReadinessWidget({ history, onFinalExam, onReviseMissed }) {
+  const r = calcReadiness(history);
+  const missedCount = getMissedCount();
+  const ringColor = r.score >= 85 ? "#48c774" : r.score >= 70 ? "#e9c176" : r.score >= 50 ? "#f0883e" : "#ff6b6b";
+  const circumference = 2 * Math.PI * 54;
+  const offset = circumference - (r.score / 100) * circumference;
+  const dims = [
+    { key: "coverage", label: "Task Coverage", max: 25, tip: "All 8 FAIS tasks practiced" },
+    { key: "accuracy", label: "Recent Accuracy", max: 30, tip: "Average score of last 5 sessions" },
+    { key: "volume", label: "Question Volume", max: 20, tip: "Total questions answered (target: 500+)" },
+    { key: "consistency", label: "Pass Consistency", max: 15, tip: "% of sessions above 66%" },
+    { key: "gaps", label: "No Weak Areas", max: 10, tip: "Tasks below 70% reduce this score" },
+  ];
+
+  return (
+    <section style={{ marginBottom: 48 }}>
+      <div style={{ background: "rgba(16,32,52,0.6)", border: "1px solid rgba(144,144,151,0.12)", borderRadius: 16, padding: 32, backdropFilter: "blur(12px)" }}>
+        <h3 style={{ color: "#e9c176", margin: "0 0 24px", fontSize: 18, fontWeight: 600 }}>🎯 Exam Readiness Score</h3>
+
+        <div style={{ display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap", marginBottom: 24 }}>
+          {/* Ring */}
+          <div style={{ position: "relative", width: 128, height: 128, flexShrink: 0 }}>
+            <svg width="128" height="128" viewBox="0 0 128 128">
+              <circle cx="64" cy="64" r="54" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+              <circle cx="64" cy="64" r="54" fill="none" stroke={ringColor} strokeWidth="8" strokeLinecap="round"
+                strokeDasharray={circumference} strokeDashoffset={offset}
+                transform="rotate(-90 64 64)" style={{ transition: "stroke-dashoffset 0.8s ease" }} />
+            </svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 32, fontWeight: 700, color: ringColor, lineHeight: 1 }}>{r.score}</span>
+              <span style={{ fontSize: 11, color: "#9090b0", marginTop: 2 }}>/ 100</span>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: ringColor, marginBottom: 6 }}>{r.level}</div>
+            <div style={{ fontSize: 14, color: "#c6c6cd", lineHeight: 1.6, marginBottom: 16 }}>{r.recommendation}</div>
+
+            {/* Dimension bars */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {dims.map(d => {
+                const val = r.details[d.key] || 0;
+                const pct = Math.round((val / d.max) * 100);
+                const barColor = pct >= 80 ? "#48c774" : pct >= 60 ? "#e9c176" : "#ff6b6b";
+                return (
+                  <div key={d.key} title={d.tip}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#9090b0", marginBottom: 3 }}>
+                      <span>{d.label}</span>
+                      <span style={{ color: barColor }}>{val}/{d.max}</span>
+                    </div>
+                    <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+                      <div style={{ height: "100%", background: barColor, borderRadius: 4, width: `${pct}%`, transition: "width 0.5s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {missedCount > 0 && (
+            <button onClick={onReviseMissed} style={{ flex: 1, minWidth: 200, background: "rgba(233,193,118,0.1)", border: "1px solid rgba(233,193,118,0.4)", color: "#e9c176", padding: "14px 20px", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              🔄 Revise {missedCount} Missed Question{missedCount !== 1 ? "s" : ""}
+            </button>
+          )}
+          {r.score >= 60 && (
+            <button onClick={onFinalExam} style={{ flex: 1, minWidth: 200, background: "linear-gradient(135deg, rgba(72,199,116,0.15), rgba(72,199,116,0.05))", border: "1px solid rgba(72,199,116,0.5)", color: "#48c774", padding: "14px 20px", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              🏆 Final Exam Simulator — 50 Questions, 120 Minutes
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ExplanationPanel({ question, selectedAnswer }) {
   const isCorrect = selectedAnswer === question.answer;
   const exp = explanations[question.id];
@@ -918,6 +1066,8 @@ export default function RE5Exam() {
   const [smartMode, setSmartMode] = useState(false);
   const [history, setHistory] = useState(() => loadHistory());
   const [weakTopicMode, setWeakTopicMode] = useState(false);
+  const [missedMode, setMissedMode] = useState(false);
+  const [finalExamMode, setFinalExamMode] = useState(false);
   const timerRef = useRef(null);
 
   const filtered = selectedTopic === "All Topics" ? questions : questions.filter(q => q.topic === selectedTopic);
@@ -952,12 +1102,25 @@ export default function RE5Exam() {
       taskScores: ts,
     };
     saveToHistory(entry);
+    saveMissedFromResults(results);
     setHistory(loadHistory());
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function startExam(trainWeak = false) {
+  function startExam(trainWeak = false, reviseMissed = false, finalExam = false) {
     let pool;
-    if (trainWeak) {
+    setMissedMode(reviseMissed);
+    setFinalExamMode(finalExam);
+    if (finalExam) {
+      pool = buildSmartExam(questions);
+      setWeakTopicMode(false);
+    } else if (reviseMissed) {
+      setWeakTopicMode(false);
+      const missedIds = getMissedQuestionIds();
+      const missedQs = missedIds.map(id => questions.find(q => q.id === id)).filter(Boolean);
+      pool = missedQs.length > 0
+        ? missedQs.slice(0, Math.min(numQuestions, missedQs.length))
+        : [...filtered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, filtered.length));
+    } else if (trainWeak) {
       setWeakTopicMode(true);
       const weakIds = getWeakTaskIds(history);
       const weakFiltered = weakIds.length > 0
@@ -1084,6 +1247,8 @@ export default function RE5Exam() {
       {mode !== "home" && (
         <div style={{ background: "#031427", borderBottom: "1px solid #45464d", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
           <button onClick={() => { setMode("home"); setTimerActive(false); }} style={{ background: "transparent", border: "1px solid #45464d", color: "#c6c6cd", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>← Home</button>
+          {mode === "exam" && finalExamMode && <div style={{ background: "rgba(72,199,116,0.1)", border: "1px solid rgba(72,199,116,0.4)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#48c774" }}>FINAL EXAM</div>}
+          {mode === "exam" && missedMode && <div style={{ background: "rgba(233,193,118,0.1)", border: "1px solid rgba(233,193,118,0.3)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#e9c176" }}>REVISION</div>}
           {mode === "exam" && <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(233,193,118,0.3)", borderRadius: 8, padding: "6px 16px", fontFamily: "monospace", fontSize: 16, color: timeLeft < 300 ? "#ffb4ab" : "#e9c176" }}>⏱ {mins}:{secs.toString().padStart(2, "0")}</div>}
         </div>
       )}
@@ -1123,6 +1288,9 @@ export default function RE5Exam() {
                 onTrainWeak={() => { setSmartMode(false); startExam(true); }}
               />
             )}
+
+            {/* Exam Readiness Score */}
+            {history.length > 0 && <ReadinessWidget history={history} onFinalExam={() => startExam(false, false, true)} onReviseMissed={() => startExam(false, true, false)} />}
 
             {/* Configure Session */}
             <section style={{ paddingBottom: 96 }}>
@@ -1280,10 +1448,27 @@ export default function RE5Exam() {
         {/* RESULTS */}
         {mode === "results" && (
           <div>
+            {/* Final Exam Certificate */}
+            {finalExamMode && (
+              <div id="final-exam-cert" style={{ background: "linear-gradient(135deg, #102034, #0a1628)", border: "2px solid #d4af37", borderRadius: 20, padding: 40, marginBottom: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg, #d4af37, #b8860b, #d4af37)" }} />
+                <div style={{ fontSize: 14, color: "#d4af37", letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>RE5 Final Exam Simulation</div>
+                <div style={{ fontSize: 14, color: "#9090b0", marginBottom: 24 }}>50 Questions | 120 Minutes | FSCA Distribution</div>
+                <div style={{ fontSize: 72, marginBottom: 12 }}>{passed ? "🏆" : "📚"}</div>
+                <div style={{ fontSize: 42, fontWeight: 800, color: passed ? "#48c774" : "#ff6b6b", marginBottom: 8 }}>{pct}%</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: passed ? "#48c774" : "#ff6b6b", marginBottom: 16 }}>{passed ? "PASSED — Exam Ready!" : "Not Yet — Keep Preparing"}</div>
+                <div style={{ fontSize: 15, color: "#c6c6cd", marginBottom: 8 }}>{score} of {examQuestions.length} correct | Pass mark: 66%</div>
+                <div style={{ fontSize: 13, color: "#9090b0" }}>Completed {new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })} at {new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</div>
+                {passed && <div style={{ marginTop: 20, fontSize: 14, color: "#48c774", fontWeight: 600 }}>You are ready to book your FSCA RE5 examination.</div>}
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg, #d4af37, #b8860b, #d4af37)" }} />
+              </div>
+            )}
+
             <div style={{ textAlign: "center", marginBottom: 40 }}>
-              <div className="rcp-results-emoji" style={{ fontSize: 60, marginBottom: 16 }}>{passed ? "🏆" : "📖"}</div>
-              <h2 className="rcp-results-heading" style={{ fontSize: 32, color: passed ? "#48c774" : "#ff6b6b", margin: "0 0 8px" }}>{passed ? "PASSED!" : "Not Yet — Keep Studying"}</h2>
-              <p style={{ color: "#9090b0", margin: 0 }}>You scored {score} out of {examQuestions.length} ({pct}%)</p>
+              {!finalExamMode && <div className="rcp-results-emoji" style={{ fontSize: 60, marginBottom: 16 }}>{passed ? "🏆" : "📖"}</div>}
+              {!finalExamMode && <h2 className="rcp-results-heading" style={{ fontSize: 32, color: passed ? "#48c774" : "#ff6b6b", margin: "0 0 8px" }}>{passed ? "PASSED!" : "Not Yet — Keep Studying"}</h2>}
+              <p style={{ color: "#9090b0", margin: 0 }}>{finalExamMode ? "" : `You scored ${score} out of ${examQuestions.length} (${pct}%)`}</p>
+              {missedMode && <p style={{ color: "#e9c176", margin: "8px 0 0", fontSize: 13 }}>Spaced Repetition Session — Questions you previously got wrong are resurfaced until you get them right 3 times in a row.</p>}
             </div>
 
             <div className="rcp-results-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 40 }}>
