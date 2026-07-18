@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main pages -->
+  <url><loc>https://re5-prep.co.za/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://re5-prep.co.za/study-guide</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://re5-prep.co.za/course</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://re5-prep.co.za/resources</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/cpd-calculator</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/community</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://re5-prep.co.za/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://re5-prep.co.za/blog</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+
+  <!-- RE1 pages -->
+  <url><loc>https://re5-prep.co.za/re1</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://re5-prep.co.za/re1/course</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/re1/practice</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/re1/study-guide</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Blog posts -->
+  <url><loc>https://re5-prep.co.za/blog/how-to-pass-re5-exam-south-africa</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://re5-prep.co.za/blog/re1-vs-re5-which-exam-do-you-need</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://re5-prep.co.za/blog/fais-act-explained-financial-representatives</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://re5-prep.co.za/blog/fica-compliance-financial-advisers-south-africa</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://re5-prep.co.za/blog/treating-customers-fairly-6-tcf-outcomes</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://re5-prep.co.za/blog/cpd-requirements-financial-advisers-south-africa</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://re5-prep.co.za/blog/fit-and-proper-requirements-fais</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://re5-prep.co.za/blog/twin-peaks-regulatory-model-fsca-prudential-authority</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- Deeper Knowledge topics -->
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/fais-act-regulatory-framework</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/fsp-licensing-categories</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/compliance-officers-function</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/maintaining-fsp-license</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/undesirable-business-practices</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/key-individual-role</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/general-code-of-conduct</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/record-keeping-requirements</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/money-laundering-terrorist-financing</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/fais-ombud-complaints</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/representatives-under-fais</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://re5-prep.co.za/deeper-knowledge/fsr-act-twin-peaks</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Legal -->
+  <url><loc>https://re5-prep.co.za/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://re5-prep.co.za/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://re5-prep.co.za/cookie-policy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>

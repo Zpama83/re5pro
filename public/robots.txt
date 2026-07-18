@@ -1,5 +1,4 @@
 User-agent: *
 Disallow:
 
-# Allow all crawlers to index the site.
-# Ads.txt is published in the public folder for ad network verification.
+Sitemap: https://re5-prep.co.za/sitemap.xml

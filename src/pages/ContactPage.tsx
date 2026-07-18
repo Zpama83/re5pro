@@ -44,7 +44,7 @@ export default function ContactPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 40 }}>
           {[
             { icon: "✉️", label: "Email", value: "lungi09@gmail.com", link: "mailto:lungi09@gmail.com" },
-            { icon: "🌐", label: "Website", value: "www.re5-prep.co.za", link: "https://www.re5-prep.co.za" },
+            { icon: "🌐", label: "Website", value: "www.re5-prep.co.za", link: "https://re5-prep.co.za" },
             { icon: "📍", label: "Location", value: "South Africa", link: null },
           ].map(({ icon, label, value, link }) => (
             <div key={label} style={{ background: "rgba(16,32,52,0.7)", border: "1px solid #1e3a5f", borderRadius: 10, padding: "20px 22px" }}>
