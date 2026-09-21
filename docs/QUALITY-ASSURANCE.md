@@ -103,6 +103,7 @@ South African FAIS compliance officer / accredited RE trainer must review:**
 - [ ] RE5 Task 4 deep-dive — 14 lessons × 5 questions
 - [ ] RE5 other-task coverage — 7 lessons × 5 questions
 - [ ] RE5 supplementary — 4 lessons × 5 questions
+- [ ] RE5 scenario bank — 40 draft items (section 6.11), not yet served
 - [ ] RE1 course lessons — 16 lessons (concepts + statutory refs)
 - [ ] RE1 Supabase question bank — 180 questions
 - [ ] CPD calculator — confirm the 6/12/18-hour bases and pro-rata method
@@ -304,13 +305,66 @@ generated client file itself is untouched, since it carries a "do not edit"
 header; as a side effect the entry bundle drops from 1.4 MB to 146 kB, with
 the app in a lazily-loaded chunk.
 
-### 6.11 Still outstanding
+### 6.11 Scenario and combination items drafted (awaiting review)
+
+Section 6.5 fixed how complexity is reported. It could not fix what the bank
+actually contains, which is the deeper problem: 166 of the 213 servable
+questions are `Direct` recall with a median prompt of 61 characters, while the
+live RE5 leans on scenarios and combination items.
+
+The shortage is measurable. The servable pool holds 106 questions at L1, 68 at
+L2, 30 at L3 and **9 at L4**. A 50-question mock needs 10 at L3 and 5 at L4,
+so every sitting draws five of the same nine analysis items. A candidate who
+works through the bank twice has seen all of them.
+
+`src/data/re5ScenarioBank/` holds 40 draft items written against that gap:
+
+| | |
+|---|---|
+| Items | 40 — five per FSCA task, all eight tasks |
+| Levels | 24 Application (L3), 16 Analysis (L4). No recall items |
+| Formats | 17 scenario, 13 roman-numeral combination, 8 most/best/least, 2 sequencing |
+| Median prompt | 296 characters, against 61 in the bank they supplement |
+| Answer positions | 10 each on A, B, C and D |
+
+Each item carries a statutory justification, an explanation for every wrong
+option, and the provisions a reviewer should check it against. Where an item
+turns on a figure or a period — the cash threshold, the Ombud cap, the
+debarment window, the CPD cycle — that figure is stated in the justification
+rather than left implicit, and the `statutoryRefs` entry says to verify it.
+
+`src/data/__tests__/scenarioBank.test.ts` holds them to the same standard as
+the rest of the content: structure, answer-key and explanation agreement,
+task coverage, post-2018 terminology, and two checks specific to this set —
+that answer letters are not clustered, and that the conversion to the
+mock-bank shape keeps each distractor explanation attached to the option it
+was written for.
+
+**They are not served.** `SCENARIO_BANK_REVIEWED` is `false`, so
+`approvedScenarioItems()` returns an empty array, nothing in the application
+imports the item files, and a test asserts both. This is the same posture as
+the quarantined items in section 6.6, for the same reason: the set was
+authored by an LLM and carries exactly the risk section 4 describes. It is
+structurally sound and internally consistent, and unproven as to legal
+correctness.
+
+**Reviewer brief.** Please check each of the 40 items for: whether the keyed
+answer is correct in law; whether the statutory citation supports it; whether
+any threshold, timeline or monetary figure is current; and whether each
+distractor is wrong for the reason the analysis gives. Items are grouped by
+task in `items-tasks-1-4.ts` and `items-tasks-5-8.ts`. Once signed off, record
+the reviewer and the date here, set `SCENARIO_BANK_REVIEWED` to `true`, and
+integrate through `toMockQuestion`, which assigns each item a mock-bank id.
+
+### 6.12 Still outstanding
 
 - The SME review in section 4 remains the gate on calling any of this
   exam-grade. Section 6.6 suggests it will find real defects.
 - 166 of the 213 servable questions are still `Direct` recall, with a median
-  prompt of 61 characters. The live RE5 leans heavily on scenarios and
-  combination items. This is a content-authoring job, not a code fix.
+  prompt of 61 characters. 40 drafted replacements now sit in
+  `src/data/re5ScenarioBank/` (section 6.11), but they are blocked on the
+  same review as everything else, and 40 items do not by themselves rebalance
+  a 213-question bank.
 - Levels for questions 1-250 are estimated, not tagged.
 - Regulatory figures drift. The 6-monthly syllabus-drift review in section 5
   still applies.
