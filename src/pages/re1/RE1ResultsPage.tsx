@@ -74,7 +74,7 @@ const RE1ResultsPage = () => {
             if (qError) throw qError;
             setQuestions(qData as RE1Question[]);
           }
-        } catch (err: any) {
+        } catch (err) {
           setError(err.message);
         } finally {
           setLoading(false);
