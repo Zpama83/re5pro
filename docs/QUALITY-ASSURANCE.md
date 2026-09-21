@@ -250,14 +250,43 @@ distractor text asserting that "CPD cycles run on calendar years". Section 3
 of this document states the cycle runs 1 June - 31 May. One of the two is
 wrong.
 
-### 6.7 Claims corrected in the product
+### 6.7 The exam did not behave like an exam (fixed)
+
+An answer locked on click and revealed the correct option immediately —
+including in the Final Exam simulation — and the only control was "Next".
+A candidate could not skip a question, go back to one, flag something for a
+second look, or change an answer. The live exam allows all of it, so the
+simulation trained the wrong habits and made the timed mock harder than the
+real paper.
+
+Session state is now one entry per question position rather than an
+append-only results array. Candidates can skip, revisit any question from a
+numbered navigator, flag for review, and — in a full mock, where feedback is
+withheld until submission — change an answer. Practice and the drill modes
+still reveal feedback immediately and lock the question with it. Submitting
+with blanks asks first and states that blanks are marked incorrect.
+
+### 6.8 Orphaned duplicates removed (fixed)
+
+73 stale copies of `src/` files sat in the repository root — `RE5Exam.jsx`,
+`StudyGuide.tsx`, `questionMetadata.js`, the whole shadcn set, plus
+artefacts like "Index (4).tsx". Nothing imported them, so an edit to the
+wrong copy would look correct and change nothing. Two root files were not
+duplicates and were kept: the Deeper Knowledge migration (moved into
+`supabase/migrations/`, where it was the only copy) and `config.toml`,
+which pinned the Supabase project this document's companion
+`docs/SUPABASE-PROJECT.md` records as deprecated — repointed at the
+canonical project. It probably belongs at `supabase/config.toml` for the
+CLI to read it.
+
+### 6.9 Claims corrected in the product
 
 The final-exam certificate read "PASSED — Exam Ready!" and "You are ready to
 book your FSCA RE5 examination" over content that is explicitly unreviewed
 (section 4) and was, at the time, gameable to 80%. It now reports the result
 against the pass mark and states that the material awaits compliance sign-off.
 
-### 6.8 Still outstanding
+### 6.10 Still outstanding
 
 - The SME review in section 4 remains the gate on calling any of this
   exam-grade. Section 6.6 suggests it will find real defects.
@@ -269,7 +298,5 @@ against the pass mark and states that the material awaits compliance sign-off.
   `VITE_SUPABASE_URL` is unset, before React renders — so a missing or
   mistyped Vercel environment variable takes the whole site down with a blank
   page that no error boundary can catch.
-- ~80 orphaned duplicates of `src/` files sit in the repository root
-  (`RE5Exam.jsx`, `StudyGuide.tsx`, `questionMetadata.js`, the shadcn
-  components). Nothing imports them; they are stale copies that invite editing
-  the wrong file.
+- Regulatory figures drift. The 6-monthly syllabus-drift review in section 5
+  still applies.
