@@ -1,10 +1,16 @@
 import { useEffect } from "react";
 
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
+
 export function AdSenseSlot() {
   useEffect(() => {
     try {
-      if (typeof window !== "undefined" && (window as any).adsbygoogle) {
-        (window as any).adsbygoogle.push({});
+      if (typeof window !== "undefined" && window.adsbygoogle) {
+        window.adsbygoogle.push({});
       }
     } catch (error) {
       console.warn("AdSense push failed", error);

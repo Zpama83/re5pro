@@ -1,3 +1,5 @@
+import { shuffle } from "@/lib/examOptions";
+
 // Metadata layer for RE5 question bank (325 questions).
 // Maps each question id -> { taskId, complexityLevel, questionStyle, legislativeCitation }
 //
@@ -34,6 +36,42 @@ const TOPIC_TO_TASK = {
   "Mixed": 1,
 };
 
+// Topics that are NOT part of the RE5 syllabus. RE5 tests the FAIS/FSCA
+// regulatory framework, not product or technical knowledge, so items about
+// bonds, compound interest, tax on dividends or the financial-planning
+// process do not belong in a mock exam. They used to fall through the
+// TOPIC_TO_TASK lookup into Task 1, which is how one task came to hold 58%
+// of the bank. They stay browsable under their own topic filter, but the
+// mock-exam builder and the FSCA task heatmap ignore them.
+export const OFF_SYLLABUS_TOPICS = new Set([
+  "CIS",
+  "Consumer Protection",
+  "Financial Planning",
+  "Insurance Principles",
+  "Investment Principles",
+  "Long-term Insurance",
+  "POPIA",
+  "Regulation",
+  "Retirement",
+  "Securities",
+  "Short-term Insurance",
+  "Taxation",
+]);
+
+export const isInSyllabus = (question) => !OFF_SYLLABUS_TOPICS.has(question.topic);
+
+// Withdrawn from every pool pending verification by a compliance officer.
+// They stay in the data file so a reviewer sees them in context; they are
+// never served to a candidate. See docs/QUALITY-ASSURANCE.md section 6.
+export const QUARANTINED_IDS = new Set([
+  251, // Keys the RE5 pass mark at 66% while offering 65% as a distractor.
+  256, // Keys debarment notification at 15 days; the currency audit says 5.
+]);
+
+// The pool any candidate-facing feature should draw from.
+export const servableQuestions = (all) =>
+  all.filter((q) => !QUARANTINED_IDS.has(q.id) && isInSyllabus(q));
+
 const TOPIC_TO_CITATION = {
   "FAIS Act": "FAIS Act 37 of 2002",
   "FAIS Advanced": "FAIS Act 37 of 2002",
@@ -53,6 +91,20 @@ const TOPIC_TO_CITATION = {
   "Mixed": "FAIS Act / FSR Act",
 };
 
+
+// Per-question task overrides, for items whose topic label does not determine
+// the FSCA task. Every Key Individual question in the bank was filed under
+// "FSP Licensing" or "FAIS Advanced", so no question ever resolved to Task 3:
+// the smart-exam builder could not cover all 8 tasks, and the results heatmap
+// showed "Task 3 — Key Individual: not tested" after every session.
+const TASK_OVERRIDES = {
+  13: 3,  // What is a 'key individual' in terms of the FAIS Act?
+  14: 3,  // A key individual must be approved by:
+  17: 3,  // What must an FSP do if it appoints a new key individual?
+  205: 3, // Notification window when a key individual leaves or is appointed
+  283: 3, // Consequence when a KI no longer meets honesty and integrity
+  298: 3, // Which duties belong exclusively to the Key Individual
+};
 // Explicit complexity + style overrides for specific IDs.
 // IDs 1-250: heuristically tagged below; selected ones overridden here.
 // IDs 251-300: tagged precisely per the exam-grade spec.
@@ -140,32 +192,72 @@ const EXPLICIT = {
   325: { level: 4, style: "Scenario" },
 };
 
-// Heuristic complexity assignment for IDs 1-250 to roughly mirror FSCA 30/40/20/10.
-// Uses id % 10 buckets so the spread stays even across topics.
-function defaultComplexity(id) {
-  const m = id % 10;
-  if (m <= 2) return 1; // 30%
-  if (m <= 6) return 2; // 40%
-  if (m <= 8) return 3; // 20%
-  return 4;             // 10%
+// "Thandi has just...", "Sipho wants to..." — a named actor doing something.
+const SCENARIO_PATTERN =
+  /\b[A-Z][a-z]+ (has|have|wants|wishes|nominated|received|lost|is|was|were|applies|applied|advises|advised|sells|sold|recommends|recommended|discovers|discovered|fails|failed|submits|submitted)\b/;
+
+// Combination items — "i. ... ii. ... iii. ..." in the stem, or options like
+// "i and iii only". These ask the candidate to weigh several statements.
+const ROMAN_STEM = /\bi\.\s/;
+const ROMAN_STEM_SECOND = /\bii\.\s/;
+const ROMAN_OPTION = /\bi{1,3}\b\s*(and|,)\s*i{1,3}\b/i;
+
+// Complexity estimation for the questions nobody has hand-tagged (IDs 1-250).
+//
+// This used to be `id % 10`, which produced a tidy-looking 30/40/20/10 spread
+// bearing no relationship to the questions — the Bloom heatmap and the "FSCA
+// distribution" claim were decorative for 77% of the bank. This reads the
+// actual shape of the item instead. It is still an estimate, and getMetadata
+// reports it as one (`levelSource: "estimated"`) so the UI can say so.
+function estimateComplexity(question) {
+  const text = question.q || "";
+  const options = (question.options || []).join(" ");
+
+  // L4 Analysis — combination and ordering items: several statements have to
+  // be evaluated against each other, not one fact recalled.
+  if (ROMAN_STEM.test(text) && ROMAN_STEM_SECOND.test(text)) return 4;
+  if (ROMAN_OPTION.test(options)) return 4;
+  if (/\b(sequence|correct order|chronological order)\b/i.test(text)) return 4;
+
+  // L3 Application — a described situation the candidate has to act on.
+  if (/\b(most appropriate|best course|least appropriate|most likely|first step)\b/i.test(text)) return 3;
+  if (SCENARIO_PATTERN.test(text)) return 3;
+
+  // L2 Comprehension — negatives and "which of the following" framing require
+  // understanding a rule well enough to test cases against it.
+  if (/\b(not|except|excluding)\b/i.test(text)) return 2;
+  if (/which of the following/i.test(text)) return 2;
+  if (/\b(why|purpose of|difference between|implication|means that)\b/i.test(text)) return 2;
+
+  // L1 Knowledge — short definitional recall.
+  return text.length <= 90 ? 1 : 2;
 }
 
 function defaultStyle(question) {
-  const text = (question.q || "").toLowerCase();
-  if (text.includes(" not ") || text.includes("except") || text.includes("least appropriate")) return "Negative";
-  if (text.includes("\ni.") || text.includes("i. ") && text.includes("ii.")) return "RomanNumeral";
-  if (text.includes("most ") || text.includes("best ") || text.includes("least ")) return "MostBestLeast";
-  if (text.match(/\b[A-Z][a-z]+ (has|wants|nominated|received|lost|is)/)) return "Scenario";
+  const text = question.q || "";
+  const lower = text.toLowerCase();
+  if (lower.includes(" not ") || lower.includes("except") || lower.includes("least appropriate")) return "Negative";
+  // The original test here was `a || (b && c)` by precedence, where `b` was the
+  // substring "i. " — which matches inside ordinary words.
+  if (ROMAN_STEM.test(text) && ROMAN_STEM_SECOND.test(text)) return "RomanNumeral";
+  if (lower.includes("most ") || lower.includes("best ") || lower.includes("least ")) return "MostBestLeast";
+  if (SCENARIO_PATTERN.test(text)) return "Scenario";
   return "Direct";
 }
 
 export function getMetadata(question) {
   const explicit = EXPLICIT[question.id] || {};
-  const taskId = TOPIC_TO_TASK[question.topic] ?? 1;
+  const inSyllabus = isInSyllabus(question);
+  // Off-syllabus items resolve to no FSCA task, rather than silently becoming
+  // Task 1 — which is how Task 1 came to hold 58% of the bank.
+  const taskId = inSyllabus
+    ? (TASK_OVERRIDES[question.id] ?? TOPIC_TO_TASK[question.topic] ?? 1)
+    : null;
   const legislativeCitation = TOPIC_TO_CITATION[question.topic] ?? "FAIS Act 37 of 2002";
-  const complexityLevel = explicit.level ?? defaultComplexity(question.id);
+  const complexityLevel = explicit.level ?? estimateComplexity(question);
+  const levelSource = explicit.level ? "tagged" : "estimated";
   const questionStyle = explicit.style ?? defaultStyle(question);
-  return { taskId, complexityLevel, questionStyle, legislativeCitation };
+  return { taskId, complexityLevel, levelSource, questionStyle, legislativeCitation, inSyllabus };
 }
 
 export const TASK_LABELS = {
@@ -190,11 +282,12 @@ export const LEVEL_LABELS = {
 export const FSCA_DISTRIBUTION = { 1: 15, 2: 20, 3: 10, 4: 5 };
 
 // Build a 50-question mock matching FSCA distribution AND covering all 8 tasks.
+// Draws only from the RE5 syllabus, minus anything under compliance review.
 export function buildSmartExam(allQuestions) {
-  const tagged = allQuestions.map(q => ({ q, meta: getMetadata(q) }));
+  const tagged = servableQuestions(allQuestions).map(q => ({ q, meta: getMetadata(q) }));
   const byLevel = { 1: [], 2: [], 3: [], 4: [] };
   tagged.forEach(t => byLevel[t.meta.complexityLevel]?.push(t));
-  Object.keys(byLevel).forEach(k => byLevel[k].sort(() => Math.random() - 0.5));
+  Object.keys(byLevel).forEach(k => { byLevel[k] = shuffle(byLevel[k]); });
 
   const picked = [];
   const usedIds = new Set();
@@ -227,5 +320,5 @@ export function buildSmartExam(allQuestions) {
   }
 
   // Final shuffle so levels aren't in blocks.
-  return picked.sort(() => Math.random() - 0.5).map(t => t.q);
+  return shuffle(picked).map(t => t.q);
 }

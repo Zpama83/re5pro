@@ -626,7 +626,7 @@ function renderContent(text: string) {
 
     // Bullet points
     if (line.trim().startsWith("•") || line.trim().startsWith("-")) {
-      const text = line.trim().replace(/^[•\-]\s*/, "");
+      const text = line.trim().replace(/^[•-]\s*/, "");
       elements.push(
         <div key={`li-${i}`} style={{ display: "flex", gap: 10, padding: "3px 0", fontSize: 15, lineHeight: 1.6, color: "#c0c0d0" }}>
           <span style={{ color: "#d4af37", flexShrink: 0 }}>•</span>

@@ -49,7 +49,7 @@ export const useRE1Session = () => {
 
       if (error) throw error;
       return { data: data?.[0], error: null };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to save session:', err);
       return { data: null, error: err.message };
     } finally {

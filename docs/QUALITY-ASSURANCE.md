@@ -5,8 +5,9 @@ verified automatically on every change, what the automated pass found and
 fixed, and — critically — what still requires a qualified human reviewer
 before the content can be called exam-grade.
 
-Last full QA pass: **December 2026** (targeting the 2026 RE5 / RE1 exam
-syllabi).
+Last full content QA pass: **December 2026** (targeting the 2026 RE5 / RE1
+exam syllabi). Last code review: **September 2026** — see section 6, which
+corrects several claims made below.
 
 ---
 
@@ -19,7 +20,8 @@ This suite is the enforcement layer. It runs in CI/local on every change and
 **fails the build** if any of the following regress. It validates **all
 content surfaces**:
 
-- The RE5 mock-exam bank (325 questions in `RE5Exam.jsx`)
+- The RE5 mock-exam bank (325 authored questions in `RE5Exam.jsx`; 213 of
+  them servable — see sections 6.4 and 6.6)
 - The RE5 Task 4 deep-dive lessons (14 lessons × 5 questions)
 - The RE5 other-task coverage lessons (7 lessons × 5 questions)
 - The RE5 supplementary lessons (4 lessons × 5 questions)
@@ -46,7 +48,8 @@ content surfaces**:
 | RE1 lessons map only to topic tags that exist in the bank | No empty quizzes |
 | All 8 RE5 tasks + all 16 RE1 tasks are covered | Syllabus completeness |
 
-Result of the latest run: **39 / 39 checks passing.**
+Result of the latest run: **49 / 49 checks passing.** Note that a passing
+suite proved less than section 1 implies — see section 6.
 
 ---
 
@@ -100,6 +103,7 @@ South African FAIS compliance officer / accredited RE trainer must review:**
 - [ ] RE5 Task 4 deep-dive — 14 lessons × 5 questions
 - [ ] RE5 other-task coverage — 7 lessons × 5 questions
 - [ ] RE5 supplementary — 4 lessons × 5 questions
+- [ ] RE5 scenario bank — 40 draft items (section 6.11), not yet served
 - [ ] RE1 course lessons — 16 lessons (concepts + statutory refs)
 - [ ] RE1 Supabase question bank — 180 questions
 - [ ] CPD calculator — confirm the 6/12/18-hour bases and pro-rata method
@@ -124,3 +128,243 @@ Regulatory figures drift (the CTR threshold change is a recent example).
 Schedule a **6-monthly syllabus-drift review** (next due ~June 2027):
 re-check thresholds, timelines, and terminology against the latest Board
 Notices, update the affected questions, and re-run `npm test`.
+
+---
+
+## 6. September 2026 code review — defects found and fixed
+
+A review of the application code (not just the content) found that several
+claims in the sections above, while written in good faith, were not true of
+the shipped product. What follows is what was wrong and what was done.
+
+### 6.1 Every completed exam blanked the page (fixed)
+
+`RE5Exam.jsx` recorded `examType` on the history entry, but no such variable
+was ever declared. The results-saving effect therefore threw
+`ReferenceError: examType is not defined` the moment any exam finished. With
+no error boundary in the tree, React unmounted the whole application and the
+candidate was left on an empty page — no score, no heatmap, and no saved
+history, spaced-repetition queue or readiness score, because all three are
+written after that line. Present since 2026-07-12 (`5604d7a`).
+
+Fixed by declaring the state and setting it per session type. An
+`ErrorBoundary` now wraps the app so a future crash shows a recoverable
+message instead of a blank screen.
+
+**Why the 39-check suite did not catch it:** the suite never mounted a
+component. `src/components/__tests__/RE5Exam.test.tsx` now drives a session
+from the home screen to the results screen and asserts the history entry.
+
+**Why lint and build did not catch it:** `eslint.config.js` matched only
+`**/*.{ts,tsx}`, so the 1,581-line `.jsx` exam engine and `questionMetadata.js`
+were never linted, and `vite build` does not typecheck. Both gaps are closed:
+ESLint now covers `.js`/`.jsx` with `no-undef`, `tsconfig.app.json` sets
+`allowJs`/`checkJs`, and `npm run verify` runs typecheck + lint + tests.
+Either check flags this exact bug.
+
+### 6.2 The bank was gameable to 80% (fixed)
+
+260 of the 325 questions keyed option B. Answering "B" to every question
+scored 80% — comfortably past the 66% pass mark — which made every score,
+heatmap and readiness level meaningless and trained a pattern the real exam
+does not have. Measured across ID ranges: 218/250 for Q1-250, 31/50 for
+Q251-300, 11/25 for Q301-325.
+
+Fixed in `src/lib/examOptions.ts`: each question has its options permuted when
+a session is built, with the answer key and the explanation's wrong-option map
+remapped together so they cannot drift apart. Ascending numeric ladders
+("1 year / 3 years / 5 years / 10 years") keep their authored order, because
+scrambling those reads as a defect. Measured after the fix: always-B scores
+24%. The authored data is untouched, so a reviewer still reads the bank in a
+stable order.
+
+`sort(() => Math.random() - 0.5)` — not a uniform shuffle — was replaced with
+Fisher-Yates in all five places it was used.
+
+### 6.3 Task 3 could never be tested (fixed)
+
+No question carried the topic `Key Individual`; all 33 Key Individual items
+were filed under `FSP Licensing` or `FAIS Advanced`. `getMetadata` therefore
+never returned task 3. Consequences: `buildSmartExam` covered all 8 tasks in
+**0 of 200** runs, the results heatmap always read "Task 3 — Key Individual:
+not tested", and the readiness score coverage component was capped at 21/25
+for every user, forever.
+
+The suite's `taskId` check passed vacuously, because `getMetadata` fell back
+to task 1 for any unmapped topic, and the "all 8 tasks covered" test inspected
+only the lesson sets. Fixed with per-question task overrides (Q13, 14, 17,
+205, 283, 298). Now 200/200 runs cover all 8 tasks, and two new tests assert
+both facts directly.
+
+### 6.4 110 questions were silently filed under Task 1 (fixed)
+
+Twelve topics used in the bank had no entry in `TOPIC_TO_TASK` — POPIA,
+Insurance Principles, Investment Principles, Long-term Insurance, Short-term
+Insurance, CIS, Retirement, Securities, Financial Planning, Regulation,
+Taxation, Consumer Protection — so all 110 of their questions fell through to
+task 1, which came to hold 187 of 325 questions (58%).
+
+Most of that content is also off-syllabus: RE5 tests the FAIS/FSCA regulatory
+framework, not product knowledge. Items like "A bond is a:", "Compound
+interest means:" and "Interest income earned by individuals is subject to
+which tax" are not RE5 material.
+
+These topics are now marked `OFF_SYLLABUS_TOPICS`. They resolve to no FSCA
+task instead of task 1, they stay browsable under their own topic filter
+(labelled "not in the RE5 syllabus"), and the mock-exam builder and task
+heatmap ignore them. A result screen reports them separately. Task 1 now holds
+76 of the 213 servable questions.
+
+### 6.5 Bloom levels were fabricated for 250 questions (fixed)
+
+`defaultComplexity(id)` returned a level from `id % 10`. The resulting
+30/40/20/10 spread looked like the FSCA cognitive distribution but bore no
+relationship to the questions, so the L1-L4 heatmap and the "FSCA
+distribution" badge were decorative for 77% of the bank.
+
+Replaced with `estimateComplexity(question)`, which reads the actual form of
+the item: roman-numeral combination and ordering stems to L4; scenario framing
+and most/best/least to L3; negatives and "which of the following" to L2; short
+definitional recall to L1. This is still an estimate. `getMetadata` now returns
+`levelSource: "tagged" | "estimated"`, and the results screen states how many
+of a session's questions carried an estimated level. Questions 251-325 remain
+hand-tagged.
+
+The roman-numeral branch of `defaultStyle` also had an operator-precedence bug
+(`a || (b && c)`) whose middle term matched the substring `"i. "` inside
+ordinary words. Fixed.
+
+### 6.6 Two answer keys withdrawn pending verification
+
+Both are listed in `QUARANTINED_IDS` in `src/data/questionMetadata.js`. They
+remain in the data file so a reviewer sees them in context, but they are never
+served to a candidate. **A compliance officer must resolve both before they go
+back into the pool.**
+
+| ID | Question | Problem |
+|---|---|---|
+| **251** | Minimum pass mark for the RE5 | Options include both 65% and 66%; the key is 66% and the explanation says "65% is close but incorrect". The pass mark published by the exam bodies is 65% — 33/50 is the number of correct answers needed, which is where 66% comes from. Section 2 above records this key being changed *from* 65% *to* 66% on internal-consistency grounds alone. The item is indefensible whichever figure is right, because it pits the two against each other. Rewrite around "33 of 50" or drop it. |
+| **256** | Debarment notification window | Keyed at 15 days, cited as "Section 14(1)". Section 3 of this document states "5-day notification / 15-day grounds", and "5 days" is offered as a distractor. The key and this document contradict each other. |
+
+Related, not quarantined but flagged for the same reviewer: **Q260** carries
+distractor text asserting that "CPD cycles run on calendar years". Section 3
+of this document states the cycle runs 1 June - 31 May. One of the two is
+wrong.
+
+### 6.7 The exam did not behave like an exam (fixed)
+
+An answer locked on click and revealed the correct option immediately —
+including in the Final Exam simulation — and the only control was "Next".
+A candidate could not skip a question, go back to one, flag something for a
+second look, or change an answer. The live exam allows all of it, so the
+simulation trained the wrong habits and made the timed mock harder than the
+real paper.
+
+Session state is now one entry per question position rather than an
+append-only results array. Candidates can skip, revisit any question from a
+numbered navigator, flag for review, and — in a full mock, where feedback is
+withheld until submission — change an answer. Practice and the drill modes
+still reveal feedback immediately and lock the question with it. Submitting
+with blanks asks first and states that blanks are marked incorrect.
+
+### 6.8 Orphaned duplicates removed (fixed)
+
+73 stale copies of `src/` files sat in the repository root — `RE5Exam.jsx`,
+`StudyGuide.tsx`, `questionMetadata.js`, the whole shadcn set, plus
+artefacts like "Index (4).tsx". Nothing imported them, so an edit to the
+wrong copy would look correct and change nothing. Two root files were not
+duplicates and were kept: the Deeper Knowledge migration (moved into
+`supabase/migrations/`, where it was the only copy) and `config.toml`,
+which pinned the Supabase project this document's companion
+`docs/SUPABASE-PROJECT.md` records as deprecated — repointed at the
+canonical project. It probably belongs at `supabase/config.toml` for the
+CLI to read it.
+
+### 6.9 Claims corrected in the product
+
+The final-exam certificate read "PASSED — Exam Ready!" and "You are ready to
+book your FSCA RE5 examination" over content that is explicitly unreviewed
+(section 4) and was, at the time, gameable to 80%. It now reports the result
+against the pass mark and states that the material awaits compliance sign-off.
+
+### 6.10 A missing environment variable blanked the site (fixed)
+
+`src/integrations/supabase/client.ts` calls `createClient` at module scope,
+which throws when `VITE_SUPABASE_URL` or `VITE_SUPABASE_PUBLISHABLE_KEY` is
+unset. App imports it transitively, so the throw landed during module
+evaluation — before React rendered and outside any error boundary. One
+mistyped variable in the Vercel dashboard would take the whole platform down
+with a blank white page and no visible cause.
+
+`src/main.tsx` now checks the required variables before loading the app and
+renders `ConfigurationError` when any are missing: an apology for visitors,
+a reassurance that their locally-stored progress is intact, and the names of
+the missing variables for whoever maintains the deployment. App is imported
+dynamically so the Supabase client is never evaluated before that check. The
+generated client file itself is untouched, since it carries a "do not edit"
+header; as a side effect the entry bundle drops from 1.4 MB to 146 kB, with
+the app in a lazily-loaded chunk.
+
+### 6.11 Scenario and combination items drafted (awaiting review)
+
+Section 6.5 fixed how complexity is reported. It could not fix what the bank
+actually contains, which is the deeper problem: 166 of the 213 servable
+questions are `Direct` recall with a median prompt of 61 characters, while the
+live RE5 leans on scenarios and combination items.
+
+The shortage is measurable. The servable pool holds 106 questions at L1, 68 at
+L2, 30 at L3 and **9 at L4**. A 50-question mock needs 10 at L3 and 5 at L4,
+so every sitting draws five of the same nine analysis items. A candidate who
+works through the bank twice has seen all of them.
+
+`src/data/re5ScenarioBank/` holds 40 draft items written against that gap:
+
+| | |
+|---|---|
+| Items | 40 — five per FSCA task, all eight tasks |
+| Levels | 24 Application (L3), 16 Analysis (L4). No recall items |
+| Formats | 17 scenario, 13 roman-numeral combination, 8 most/best/least, 2 sequencing |
+| Median prompt | 296 characters, against 61 in the bank they supplement |
+| Answer positions | 10 each on A, B, C and D |
+
+Each item carries a statutory justification, an explanation for every wrong
+option, and the provisions a reviewer should check it against. Where an item
+turns on a figure or a period — the cash threshold, the Ombud cap, the
+debarment window, the CPD cycle — that figure is stated in the justification
+rather than left implicit, and the `statutoryRefs` entry says to verify it.
+
+`src/data/__tests__/scenarioBank.test.ts` holds them to the same standard as
+the rest of the content: structure, answer-key and explanation agreement,
+task coverage, post-2018 terminology, and two checks specific to this set —
+that answer letters are not clustered, and that the conversion to the
+mock-bank shape keeps each distractor explanation attached to the option it
+was written for.
+
+**They are not served.** `SCENARIO_BANK_REVIEWED` is `false`, so
+`approvedScenarioItems()` returns an empty array, nothing in the application
+imports the item files, and a test asserts both. This is the same posture as
+the quarantined items in section 6.6, for the same reason: the set was
+authored by an LLM and carries exactly the risk section 4 describes. It is
+structurally sound and internally consistent, and unproven as to legal
+correctness.
+
+**Reviewer brief.** Please check each of the 40 items for: whether the keyed
+answer is correct in law; whether the statutory citation supports it; whether
+any threshold, timeline or monetary figure is current; and whether each
+distractor is wrong for the reason the analysis gives. Items are grouped by
+task in `items-tasks-1-4.ts` and `items-tasks-5-8.ts`. Once signed off, record
+the reviewer and the date here, set `SCENARIO_BANK_REVIEWED` to `true`, and
+integrate through `toMockQuestion`, which assigns each item a mock-bank id.
+
+### 6.12 Still outstanding
+
+- The SME review in section 4 remains the gate on calling any of this
+  exam-grade. Section 6.6 suggests it will find real defects.
+- 166 of the 213 servable questions are still `Direct` recall, with a median
+  prompt of 61 characters. 40 drafted replacements now sit in
+  `src/data/re5ScenarioBank/` (section 6.11), but they are blocked on the
+  same review as everything else, and 40 items do not by themselves rebalance
+  a 213-question bank.
+- Levels for questions 1-250 are estimated, not tagged.
+- Regulatory figures drift. The 6-monthly syllabus-drift review in section 5
+  still applies.

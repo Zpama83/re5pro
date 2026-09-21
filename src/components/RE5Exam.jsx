@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { getMetadata, buildSmartExam, TASK_LABELS, LEVEL_LABELS, FSCA_DISTRIBUTION } from "@/data/questionMetadata";
+import { getMetadata, buildSmartExam, TASK_LABELS, LEVEL_LABELS, FSCA_DISTRIBUTION, servableQuestions, OFF_SYLLABUS_TOPICS, QUARANTINED_IDS } from "@/data/questionMetadata";
+import { randomiseSession, shuffle } from "@/lib/examOptions";
 
 // --- Cross-session progress persistence (localStorage) ---
 const HISTORY_KEY = 're5pro-history';
@@ -832,7 +833,19 @@ export const explanations = {
   325: { correct: "Section 14 (records) and section 16 (complaints) require an integrated, evidenced and accessible process. Concurrent remediation across disclosures, complaints routing, retraining, documentation, and a section 14 debarment assessment is the standard expected when systemic gaps are found.", wrong: { 1: "Waiting for the on-site inspection breaches the FSP's proactive oversight duties.", 2: "Blanket refunds without investigation breach record-keeping and root-cause duties.", 3: "Reconstructing recordings is an integrity breach." } },
 };
 
-const TOPICS = ["All Topics", ...Array.from(new Set(questions.map(q => q.topic)))];
+// Anything a candidate can actually be served: RE5 syllabus only, minus the
+// items withdrawn pending compliance review.
+const SERVABLE = servableQuestions(questions);
+const ALL_TOPICS_OPTION = "All RE5 Topics";
+const allTopicNames = Array.from(new Set(questions.map(q => q.topic)));
+const RE5_TOPICS = allTopicNames.filter(t => !OFF_SYLLABUS_TOPICS.has(t));
+const GENERAL_TOPICS = allTopicNames.filter(t => OFF_SYLLABUS_TOPICS.has(t));
+const TOPICS = [ALL_TOPICS_OPTION, ...RE5_TOPICS, ...GENERAL_TOPICS];
+// Quarantined items are never drawn, whatever topic is selected.
+const questionsForTopic = topic =>
+  topic === ALL_TOPICS_OPTION
+    ? SERVABLE
+    : questions.filter(q => q.topic === topic && !QUARANTINED_IDS.has(q.id));
 
 function ProgressWidget({ history, weakTaskIds, onTrainWeak }) {
   const recent = [...history].slice(0, 10).reverse();
@@ -1005,7 +1018,9 @@ function ReadinessWidget({ history, onFinalExam, onReviseMissed }) {
 
 function ExplanationPanel({ question, selectedAnswer }) {
   const isCorrect = selectedAnswer === question.answer;
-  const exp = explanations[question.id];
+  // A session's questions carry their own remapped explanation, because the
+  // options were permuted when the session was built.
+  const exp = question.explanation || explanations[question.id];
   if (!exp) return null;
 
   return (
@@ -1052,12 +1067,16 @@ function ExplanationPanel({ question, selectedAnswer }) {
 
 export default function RE5Exam() {
   const [mode, setMode] = useState("home");
-  const [selectedTopic, setSelectedTopic] = useState("All Topics");
+  const [selectedTopic, setSelectedTopic] = useState(ALL_TOPICS_OPTION);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [answered, setAnswered] = useState(false);
-  const [score, setScore] = useState(0);
-  const [results, setResults] = useState([]);
+  // One entry per question position, so a candidate can move around the paper,
+  // change an answer, or leave one blank — the way the real exam works.
+  // answers[i] = chosen option index or null; revealed[i] = feedback shown;
+  // flagged[i] = marked for a second look.
+  const [answers, setAnswers] = useState([]);
+  const [revealed, setRevealed] = useState([]);
+  const [flagged, setFlagged] = useState([]);
+  const [confirmFinish, setConfirmFinish] = useState(false);
   const [examQuestions, setExamQuestions] = useState([]);
   const [numQuestions, setNumQuestions] = useState(50);
   const [timeLeft, setTimeLeft] = useState(null);
@@ -1068,9 +1087,30 @@ export default function RE5Exam() {
   const [weakTopicMode, setWeakTopicMode] = useState(false);
   const [missedMode, setMissedMode] = useState(false);
   const [finalExamMode, setFinalExamMode] = useState(false);
+  // Which kind of session this is. Recorded on the history entry so the
+  // progress widgets can tell a full mock from a weak-task drill.
+  const [examType, setExamType] = useState("practice");
   const timerRef = useRef(null);
 
-  const filtered = selectedTopic === "All Topics" ? questions : questions.filter(q => q.topic === selectedTopic);
+  const filtered = questionsForTopic(selectedTopic);
+
+  /* ---- session state derived from `answers` ---- */
+  const currentQ = examQuestions[currentIdx];
+  const selected = answers[currentIdx] ?? null;
+  // A full mock withholds feedback until the paper is submitted. Practice and
+  // the drill modes still reveal it as you go, which is the point of them.
+  const instantFeedback = !finalExamMode;
+  const answered = Boolean(revealed[currentIdx]);
+  const isFlagged = Boolean(flagged[currentIdx]);
+  const score = examQuestions.reduce((n, q, i) => (answers[i] === q.answer ? n + 1 : n), 0);
+  const results = examQuestions.map((q, i) => ({
+    q,
+    selected: answers[i] ?? null,
+    correct: answers[i] === q.answer,
+  }));
+  const answeredCount = answers.filter(a => a !== null && a !== undefined).length;
+  const unansweredCount = examQuestions.length - answeredCount;
+  const isLastQuestion = currentIdx + 1 >= examQuestions.length;
 
   useEffect(() => {
     if (timerActive && timeLeft > 0) {
@@ -1083,10 +1123,13 @@ export default function RE5Exam() {
 
   // Save completed session to history
   useEffect(() => {
-    if (mode !== "results" || results.length === 0) return;
+    if (mode !== "results" || examQuestions.length === 0) return;
     const ts = {};
     results.forEach(r => {
       const meta = getMetadata(r.q);
+      // Off-syllabus questions map to no FSCA task, so they must not skew
+      // the task scores that drive weak-area training and readiness.
+      if (meta.taskId === null) return;
       if (!ts[meta.taskId]) ts[meta.taskId] = { correct: 0, total: 0 };
       ts[meta.taskId].total += 1;
       if (r.correct) ts[meta.taskId].correct += 1;
@@ -1110,6 +1153,13 @@ export default function RE5Exam() {
     let pool;
     setMissedMode(reviseMissed);
     setFinalExamMode(finalExam);
+    setExamType(
+      finalExam ? "final"
+        : reviseMissed ? "missed"
+          : trainWeak ? "weak-task"
+            : smartMode ? "smart"
+              : "practice",
+    );
     if (finalExam) {
       pool = buildSmartExam(questions);
       setWeakTopicMode(false);
@@ -1119,53 +1169,86 @@ export default function RE5Exam() {
       const missedQs = missedIds.map(id => questions.find(q => q.id === id)).filter(Boolean);
       pool = missedQs.length > 0
         ? missedQs.slice(0, Math.min(numQuestions, missedQs.length))
-        : [...filtered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, filtered.length));
+        : shuffle(filtered).slice(0, Math.min(numQuestions, filtered.length));
     } else if (trainWeak) {
       setWeakTopicMode(true);
       const weakIds = getWeakTaskIds(history);
       const weakFiltered = weakIds.length > 0
         ? filtered.filter(q => weakIds.includes(getMetadata(q).taskId))
         : filtered;
-      pool = [...weakFiltered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, weakFiltered.length));
+      pool = shuffle(weakFiltered).slice(0, Math.min(numQuestions, weakFiltered.length));
     } else if (smartMode) {
       pool = buildSmartExam(questions);
     } else {
-      pool = [...filtered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, filtered.length));
+      pool = shuffle(filtered).slice(0, Math.min(numQuestions, filtered.length));
     }
-    setExamQuestions(pool);
+    // Permute each question's options so the bank's heavy bias toward option B
+    // cannot be exploited or learned. Answer key and explanation move with them.
+    setExamQuestions(randomiseSession(pool, explanations));
     setCurrentIdx(0);
-    setSelected(null);
-    setAnswered(false);
-    setScore(0);
-    setResults([]);
+    setAnswers(new Array(pool.length).fill(null));
+    setRevealed(new Array(pool.length).fill(false));
+    setFlagged(new Array(pool.length).fill(false));
+    setConfirmFinish(false);
     setShowReview(false);
     setTimeLeft(pool.length * 144);
     setTimerActive(true);
     setMode("exam");
   }
 
+  const setAt = (setter, index, value) =>
+    setter(prev => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+
   function handleAnswer(idx) {
+    // Once the answer has been shown there is nothing left to choose.
     if (answered) return;
-    setSelected(idx);
-    setAnswered(true);
-    const correct = idx === examQuestions[currentIdx].answer;
-    if (correct) setScore(s => s + 1);
-    setResults(r => [...r, { q: examQuestions[currentIdx], selected: idx, correct }]);
+    setAt(setAnswers, currentIdx, idx);
+    // Answering is progress, so the "still unanswered" prompt is stale.
+    setConfirmFinish(false);
+    if (instantFeedback) setAt(setRevealed, currentIdx, true);
+  }
+
+  function goToQuestion(index) {
+    if (index < 0 || index >= examQuestions.length) return;
+    setConfirmFinish(false);
+    setCurrentIdx(index);
   }
 
   function nextQuestion() {
-    if (currentIdx + 1 >= examQuestions.length) {
-      finishExam();
-    } else {
-      setCurrentIdx(i => i + 1);
-      setSelected(null);
-      setAnswered(false);
+    goToQuestion(currentIdx + 1);
+  }
+
+  function prevQuestion() {
+    goToQuestion(currentIdx - 1);
+  }
+
+  function toggleFlag() {
+    setAt(setFlagged, currentIdx, !flagged[currentIdx]);
+  }
+
+  function goToFirstUnanswered() {
+    const index = examQuestions.findIndex((_, i) => answers[i] === null || answers[i] === undefined);
+    if (index >= 0) goToQuestion(index);
+  }
+
+  // Submitting with blanks is allowed — the real exam lets you — but it should
+  // never happen by accident, so the first press asks.
+  function attemptFinish() {
+    if (unansweredCount > 0 && !confirmFinish) {
+      setConfirmFinish(true);
+      return;
     }
+    finishExam();
   }
 
   function finishExam() {
     setTimerActive(false);
     clearTimeout(timerRef.current);
+    setConfirmFinish(false);
     setMode("results");
   }
 
@@ -1174,13 +1257,14 @@ export default function RE5Exam() {
   const mins = Math.floor((timeLeft || 0) / 60);
   const secs = (timeLeft || 0) % 60;
 
-  const currentQ = examQuestions[currentIdx];
-  const topicCounts = TOPICS.slice(1).map(t => ({ topic: t, count: questions.filter(q => q.topic === t).length }));
+  const topicCounts = RE5_TOPICS.map(t => ({ topic: t, count: questionsForTopic(t).length }));
 
   // Score by topic, task, and complexity for results
   const topicScores = {};
   const taskScores = {};
   const levelScores = {};
+  const offSyllabusScore = { correct: 0, total: 0 };
+  let estimatedLevelCount = 0;
   if (mode === "results") {
     results.forEach(r => {
       if (!topicScores[r.q.topic]) topicScores[r.q.topic] = { correct: 0, total: 0 };
@@ -1188,13 +1272,19 @@ export default function RE5Exam() {
       if (r.correct) topicScores[r.q.topic].correct += 1;
 
       const meta = getMetadata(r.q);
-      if (!taskScores[meta.taskId]) taskScores[meta.taskId] = { correct: 0, total: 0 };
-      taskScores[meta.taskId].total += 1;
-      if (r.correct) taskScores[meta.taskId].correct += 1;
+      if (meta.taskId === null) {
+        offSyllabusScore.total += 1;
+        if (r.correct) offSyllabusScore.correct += 1;
+      } else {
+        if (!taskScores[meta.taskId]) taskScores[meta.taskId] = { correct: 0, total: 0 };
+        taskScores[meta.taskId].total += 1;
+        if (r.correct) taskScores[meta.taskId].correct += 1;
+      }
 
       if (!levelScores[meta.complexityLevel]) levelScores[meta.complexityLevel] = { correct: 0, total: 0 };
       levelScores[meta.complexityLevel].total += 1;
       if (r.correct) levelScores[meta.complexityLevel].correct += 1;
+      if (meta.levelSource === "estimated") estimatedLevelCount += 1;
     });
   }
 
@@ -1270,11 +1360,12 @@ export default function RE5Exam() {
             {/* Metrics bento */}
             <section style={{ marginBottom: 64 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
-                {[{ label: "Total Questions", val: questions.length, icon: "❓", color: "#e9c176" }, { label: "Topics Covered", val: topicCounts.length, icon: "📚", color: "#4edea3" }, { label: "Pass Mark", val: "66%", icon: "🎯", color: "#e9c176" }].map((s, i) => (
+                {[{ label: "RE5 Questions", val: SERVABLE.length, icon: "❓", color: "#e9c176", note: `+${questions.length - SERVABLE.length} general / under review` }, { label: "FSCA Tasks Covered", val: 8, icon: "📚", color: "#4edea3", note: `across ${RE5_TOPICS.length} topics` }, { label: "Pass Mark", val: "66%", icon: "🎯", color: "#e9c176", note: "33 of 50" }].map((s, i) => (
                   <div key={i} className="rcp-glass rcp-metric-card" style={{ padding: 32, borderRadius: 12, textAlign: "center", transition: "all 0.3s" }}>
                     <div style={{ fontSize: 32, marginBottom: 16, color: s.color }}>{s.icon}</div>
                     <div className="rcp-headline rcp-metric-val" style={{ fontSize: 48, fontWeight: 700, color: "#d3e4fe", lineHeight: 1 }}>{s.val}</div>
                     <div style={{ fontSize: 12, color: "#c6c6cd", marginTop: 8, letterSpacing: 2, textTransform: "uppercase", fontWeight: 600 }}>{s.label}</div>
+                    {s.note && <div style={{ fontSize: 11, color: "#8a94ad", marginTop: 6 }}>{s.note}</div>}
                   </div>
                 ))}
               </div>
@@ -1312,7 +1403,7 @@ export default function RE5Exam() {
                       <div style={{ opacity: smartMode ? 0.4 : 1, pointerEvents: smartMode ? "none" : "auto" }}>
                         <label style={{ display: "block", fontSize: 12, color: "#c6c6cd", letterSpacing: 2, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, paddingLeft: 4 }}>Topic Filter</label>
                         <select value={selectedTopic} onChange={e => setSelectedTopic(e.target.value)} style={{ width: "100%", background: "#0b1c30", border: "1px solid #45464d", color: "#d3e4fe", padding: "14px 16px", borderRadius: 12, fontSize: 15, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>
-                          {TOPICS.map(t => <option key={t} value={t}>{t} {t !== "All Topics" ? `(${questions.filter(q => q.topic === t).length} questions)` : `(${questions.length} questions)`}</option>)}
+                          {TOPICS.map(t => <option key={t} value={t}>{t} {`(${questionsForTopic(t).length} questions)`}{OFF_SYLLABUS_TOPICS.has(t) ? " — not in the RE5 syllabus" : ""}</option>)}
                         </select>
                       </div>
 
@@ -1435,13 +1526,98 @@ export default function RE5Exam() {
             {/* Explanation Panel */}
             {answered && <ExplanationPanel question={currentQ} selectedAnswer={selected} />}
 
-            {answered && (
-              <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
+            {/* Navigation — a candidate can skip, come back, and change an
+                answer, as in the live exam. */}
+            <div className="rcp-exam-nav" style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                onClick={prevQuestion}
+                disabled={currentIdx === 0}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: currentIdx === 0 ? "#5a5a75" : "#c6c6cd", padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: currentIdx === 0 ? "not-allowed" : "pointer" }}
+              >
+                ← Previous
+              </button>
+
+              <button
+                onClick={toggleFlag}
+                aria-pressed={isFlagged}
+                style={{ background: isFlagged ? "rgba(240,136,62,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${isFlagged ? "#f0883e" : "rgba(255,255,255,0.15)"}`, color: isFlagged ? "#f0883e" : "#c6c6cd", padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >
+                {isFlagged ? "🚩 Flagged for review" : "🏳️ Flag for review"}
+              </button>
+
+              <div style={{ flex: 1 }} />
+
+              {!isLastQuestion && (
                 <button onClick={nextQuestion} className="rcp-next-btn" style={{ background: "linear-gradient(135deg, #d4af37, #b8860b)", border: "none", color: "#0a0a1a", padding: "12px 32px", borderRadius: 10, fontSize: 15, fontWeight: "bold", cursor: "pointer" }}>
-                  {currentIdx + 1 >= examQuestions.length ? "View Results →" : "Next Question →"}
+                  {selected === null ? "Skip →" : "Next Question →"}
                 </button>
+              )}
+              {isLastQuestion && (
+                <button onClick={attemptFinish} className="rcp-next-btn" style={{ background: "linear-gradient(135deg, #d4af37, #b8860b)", border: "none", color: "#0a0a1a", padding: "12px 32px", borderRadius: 10, fontSize: 15, fontWeight: "bold", cursor: "pointer" }}>
+                  Finish &amp; View Results →
+                </button>
+              )}
+            </div>
+
+            {confirmFinish && (
+              <div role="alert" style={{ marginTop: 16, background: "rgba(240,136,62,0.1)", border: "1px solid rgba(240,136,62,0.45)", borderRadius: 12, padding: "16px 20px" }}>
+                <div style={{ fontSize: 14, color: "#f0883e", fontWeight: 600, marginBottom: 6 }}>
+                  {unansweredCount} question{unansweredCount === 1 ? "" : "s"} still unanswered
+                </div>
+                <div style={{ fontSize: 13, color: "#c6c6cd", lineHeight: 1.6, marginBottom: 12 }}>
+                  Unanswered questions are marked incorrect. There is no penalty for guessing.
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button onClick={goToFirstUnanswered} style={{ background: "rgba(233,193,118,0.15)", border: "1px solid rgba(233,193,118,0.4)", color: "#e9c176", padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                    Go to the first one
+                  </button>
+                  <button onClick={finishExam} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.2)", color: "#c6c6cd", padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                    Submit anyway
+                  </button>
+                  <button onClick={() => setConfirmFinish(false)} style={{ background: "transparent", border: "none", color: "#8a94ad", padding: "10px 12px", fontSize: 13, cursor: "pointer" }}>
+                    Keep working
+                  </button>
+                </div>
               </div>
             )}
+
+            {/* Question navigator */}
+            <div style={{ marginTop: 28, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 18px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                <span style={{ fontSize: 12, color: "#9090b0", letterSpacing: 1, textTransform: "uppercase", fontWeight: 600 }}>
+                  {answeredCount} of {examQuestions.length} answered
+                </span>
+                {!isLastQuestion && (
+                  <button onClick={attemptFinish} style={{ background: "transparent", border: "1px solid rgba(233,193,118,0.35)", color: "#e9c176", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    Finish early
+                  </button>
+                )}
+              </div>
+              <div className="rcp-navigator" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {examQuestions.map((_, i) => {
+                  const isCurrent = i === currentIdx;
+                  const isAnswered = answers[i] !== null && answers[i] !== undefined;
+                  const isMarked = Boolean(flagged[i]);
+                  let background = "rgba(255,255,255,0.05)";
+                  let borderColor = "rgba(255,255,255,0.12)";
+                  let color = "#8a94ad";
+                  if (isAnswered) { background = "rgba(212,175,55,0.16)"; borderColor = "rgba(212,175,55,0.45)"; color = "#e9c176"; }
+                  if (isMarked) { borderColor = "#f0883e"; color = "#f0883e"; }
+                  if (isCurrent) { background = "#e9c176"; borderColor = "#e9c176"; color = "#412d00"; }
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => goToQuestion(i)}
+                      aria-current={isCurrent ? "true" : undefined}
+                      aria-label={`Question ${i + 1}${isAnswered ? ", answered" : ", not answered"}${isMarked ? ", flagged" : ""}`}
+                      style={{ width: 34, height: 34, borderRadius: 8, background, border: `1px solid ${borderColor}`, color, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1456,10 +1632,14 @@ export default function RE5Exam() {
                 <div style={{ fontSize: 14, color: "#9090b0", marginBottom: 24 }}>50 Questions | 120 Minutes | FSCA Distribution</div>
                 <div style={{ fontSize: 72, marginBottom: 12 }}>{passed ? "🏆" : "📚"}</div>
                 <div style={{ fontSize: 42, fontWeight: 800, color: passed ? "#48c774" : "#ff6b6b", marginBottom: 8 }}>{pct}%</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: passed ? "#48c774" : "#ff6b6b", marginBottom: 16 }}>{passed ? "PASSED — Exam Ready!" : "Not Yet — Keep Preparing"}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: passed ? "#48c774" : "#ff6b6b", marginBottom: 16 }}>{passed ? "Above the pass mark on this simulation" : "Below the pass mark — keep preparing"}</div>
                 <div style={{ fontSize: 15, color: "#c6c6cd", marginBottom: 8 }}>{score} of {examQuestions.length} correct | Pass mark: 66%</div>
                 <div style={{ fontSize: 13, color: "#9090b0" }}>Completed {new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })} at {new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</div>
-                {passed && <div style={{ marginTop: 20, fontSize: 14, color: "#48c774", fontWeight: 600 }}>You are ready to book your FSCA RE5 examination.</div>}
+                <div style={{ marginTop: 20, fontSize: 12, color: "#8a94ad", lineHeight: 1.7, maxWidth: 560, marginLeft: "auto", marginRight: "auto" }}>
+                  This is a practice simulation built from study material that has not yet
+                  been signed off by a compliance officer. A result here is a guide to your
+                  revision, not a prediction of the official FSCA examination.
+                </div>
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg, #d4af37, #b8860b, #d4af37)" }} />
               </div>
             )}
@@ -1507,8 +1687,19 @@ export default function RE5Exam() {
                 </div>
               </div>
 
+              {offSyllabusScore.total > 0 && (
+                <div style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#8a94ad", marginBottom: 18 }}>
+                  {offSyllabusScore.correct}/{offSyllabusScore.total} correct on general financial-services questions, which sit outside the RE5 syllabus and are not counted towards any FSCA task.
+                </div>
+              )}
+
               <div>
                 <div style={{ fontSize: 13, color: "#c0c0d0", marginBottom: 8, fontWeight: "bold" }}>By Complexity (Bloom)</div>
+                {estimatedLevelCount > 0 && (
+                  <div style={{ fontSize: 11, color: "#8a94ad", marginBottom: 8 }}>
+                    {estimatedLevelCount} of {results.length} questions carry an <strong style={{ color: "#c6c6cd" }}>estimated</strong> complexity level, inferred from the question&apos;s form pending hand-tagging.
+                  </div>
+                )}
                 <div className="rcp-bloom-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                   {[1, 2, 3, 4].map(level => {
                     const data = levelScores[level];
@@ -1566,7 +1757,7 @@ export default function RE5Exam() {
                       <span style={{ fontSize: 12, color: r.correct ? "#48c774" : "#ff6b6b" }}>{r.correct ? "✓ Correct" : "✗ Incorrect"}</span>
                     </div>
                     <p style={{ margin: "0 0 12px", fontSize: 15 }}>{r.q.q}</p>
-                    {!r.correct && <div style={{ fontSize: 13, color: "#ff9090", marginBottom: 4 }}>Your answer: {r.q.options[r.selected]}</div>}
+                    {!r.correct && <div style={{ fontSize: 13, color: "#ff9090", marginBottom: 4 }}>Your answer: {r.selected === null ? "not answered" : r.q.options[r.selected]}</div>}
                     <div style={{ fontSize: 13, color: "#48c774", marginBottom: 12 }}>✓ Correct: {r.q.options[r.q.answer]}</div>
                     <ExplanationPanel question={r.q} selectedAnswer={r.selected} />
                   </div>

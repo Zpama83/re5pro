@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RE1Question, RE1TopicTag, RE1ComplexityLevel } from '@/types/re1';
+import { shuffle } from '@/lib/examOptions';
 
 export const useRE1Questions = () => {
   const [loading, setLoading] = useState(false);
@@ -27,9 +28,9 @@ export const useRE1Questions = () => {
       if (sbError) throw sbError;
       
       // Shuffle client side
-      const shuffled = (data as RE1Question[]).sort(() => 0.5 - Math.random());
+      const shuffled = shuffle(data as RE1Question[]);
       return { data: shuffled, error: null };
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setError(err.message);
       return { data: null, error: err.message };
@@ -76,7 +77,7 @@ export const useRE1Questions = () => {
       }
 
       return { data: assembled, error: null };
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setError(err.message);
       return { data: null, error: err.message };
