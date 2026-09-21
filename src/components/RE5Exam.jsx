@@ -1069,10 +1069,14 @@ export default function RE5Exam() {
   const [mode, setMode] = useState("home");
   const [selectedTopic, setSelectedTopic] = useState(ALL_TOPICS_OPTION);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [answered, setAnswered] = useState(false);
-  const [score, setScore] = useState(0);
-  const [results, setResults] = useState([]);
+  // One entry per question position, so a candidate can move around the paper,
+  // change an answer, or leave one blank — the way the real exam works.
+  // answers[i] = chosen option index or null; revealed[i] = feedback shown;
+  // flagged[i] = marked for a second look.
+  const [answers, setAnswers] = useState([]);
+  const [revealed, setRevealed] = useState([]);
+  const [flagged, setFlagged] = useState([]);
+  const [confirmFinish, setConfirmFinish] = useState(false);
   const [examQuestions, setExamQuestions] = useState([]);
   const [numQuestions, setNumQuestions] = useState(50);
   const [timeLeft, setTimeLeft] = useState(null);
@@ -1090,6 +1094,24 @@ export default function RE5Exam() {
 
   const filtered = questionsForTopic(selectedTopic);
 
+  /* ---- session state derived from `answers` ---- */
+  const currentQ = examQuestions[currentIdx];
+  const selected = answers[currentIdx] ?? null;
+  // A full mock withholds feedback until the paper is submitted. Practice and
+  // the drill modes still reveal it as you go, which is the point of them.
+  const instantFeedback = !finalExamMode;
+  const answered = Boolean(revealed[currentIdx]);
+  const isFlagged = Boolean(flagged[currentIdx]);
+  const score = examQuestions.reduce((n, q, i) => (answers[i] === q.answer ? n + 1 : n), 0);
+  const results = examQuestions.map((q, i) => ({
+    q,
+    selected: answers[i] ?? null,
+    correct: answers[i] === q.answer,
+  }));
+  const answeredCount = answers.filter(a => a !== null && a !== undefined).length;
+  const unansweredCount = examQuestions.length - answeredCount;
+  const isLastQuestion = currentIdx + 1 >= examQuestions.length;
+
   useEffect(() => {
     if (timerActive && timeLeft > 0) {
       timerRef.current = setTimeout(() => setTimeLeft(t => t - 1), 1000);
@@ -1101,7 +1123,7 @@ export default function RE5Exam() {
 
   // Save completed session to history
   useEffect(() => {
-    if (mode !== "results" || results.length === 0) return;
+    if (mode !== "results" || examQuestions.length === 0) return;
     const ts = {};
     results.forEach(r => {
       const meta = getMetadata(r.q);
@@ -1164,38 +1186,69 @@ export default function RE5Exam() {
     // cannot be exploited or learned. Answer key and explanation move with them.
     setExamQuestions(randomiseSession(pool, explanations));
     setCurrentIdx(0);
-    setSelected(null);
-    setAnswered(false);
-    setScore(0);
-    setResults([]);
+    setAnswers(new Array(pool.length).fill(null));
+    setRevealed(new Array(pool.length).fill(false));
+    setFlagged(new Array(pool.length).fill(false));
+    setConfirmFinish(false);
     setShowReview(false);
     setTimeLeft(pool.length * 144);
     setTimerActive(true);
     setMode("exam");
   }
 
+  const setAt = (setter, index, value) =>
+    setter(prev => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+
   function handleAnswer(idx) {
+    // Once the answer has been shown there is nothing left to choose.
     if (answered) return;
-    setSelected(idx);
-    setAnswered(true);
-    const correct = idx === examQuestions[currentIdx].answer;
-    if (correct) setScore(s => s + 1);
-    setResults(r => [...r, { q: examQuestions[currentIdx], selected: idx, correct }]);
+    setAt(setAnswers, currentIdx, idx);
+    // Answering is progress, so the "still unanswered" prompt is stale.
+    setConfirmFinish(false);
+    if (instantFeedback) setAt(setRevealed, currentIdx, true);
+  }
+
+  function goToQuestion(index) {
+    if (index < 0 || index >= examQuestions.length) return;
+    setConfirmFinish(false);
+    setCurrentIdx(index);
   }
 
   function nextQuestion() {
-    if (currentIdx + 1 >= examQuestions.length) {
-      finishExam();
-    } else {
-      setCurrentIdx(i => i + 1);
-      setSelected(null);
-      setAnswered(false);
+    goToQuestion(currentIdx + 1);
+  }
+
+  function prevQuestion() {
+    goToQuestion(currentIdx - 1);
+  }
+
+  function toggleFlag() {
+    setAt(setFlagged, currentIdx, !flagged[currentIdx]);
+  }
+
+  function goToFirstUnanswered() {
+    const index = examQuestions.findIndex((_, i) => answers[i] === null || answers[i] === undefined);
+    if (index >= 0) goToQuestion(index);
+  }
+
+  // Submitting with blanks is allowed — the real exam lets you — but it should
+  // never happen by accident, so the first press asks.
+  function attemptFinish() {
+    if (unansweredCount > 0 && !confirmFinish) {
+      setConfirmFinish(true);
+      return;
     }
+    finishExam();
   }
 
   function finishExam() {
     setTimerActive(false);
     clearTimeout(timerRef.current);
+    setConfirmFinish(false);
     setMode("results");
   }
 
@@ -1204,7 +1257,6 @@ export default function RE5Exam() {
   const mins = Math.floor((timeLeft || 0) / 60);
   const secs = (timeLeft || 0) % 60;
 
-  const currentQ = examQuestions[currentIdx];
   const topicCounts = RE5_TOPICS.map(t => ({ topic: t, count: questionsForTopic(t).length }));
 
   // Score by topic, task, and complexity for results
@@ -1474,13 +1526,98 @@ export default function RE5Exam() {
             {/* Explanation Panel */}
             {answered && <ExplanationPanel question={currentQ} selectedAnswer={selected} />}
 
-            {answered && (
-              <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
+            {/* Navigation — a candidate can skip, come back, and change an
+                answer, as in the live exam. */}
+            <div className="rcp-exam-nav" style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                onClick={prevQuestion}
+                disabled={currentIdx === 0}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: currentIdx === 0 ? "#5a5a75" : "#c6c6cd", padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: currentIdx === 0 ? "not-allowed" : "pointer" }}
+              >
+                ← Previous
+              </button>
+
+              <button
+                onClick={toggleFlag}
+                aria-pressed={isFlagged}
+                style={{ background: isFlagged ? "rgba(240,136,62,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${isFlagged ? "#f0883e" : "rgba(255,255,255,0.15)"}`, color: isFlagged ? "#f0883e" : "#c6c6cd", padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >
+                {isFlagged ? "🚩 Flagged for review" : "🏳️ Flag for review"}
+              </button>
+
+              <div style={{ flex: 1 }} />
+
+              {!isLastQuestion && (
                 <button onClick={nextQuestion} className="rcp-next-btn" style={{ background: "linear-gradient(135deg, #d4af37, #b8860b)", border: "none", color: "#0a0a1a", padding: "12px 32px", borderRadius: 10, fontSize: 15, fontWeight: "bold", cursor: "pointer" }}>
-                  {currentIdx + 1 >= examQuestions.length ? "View Results →" : "Next Question →"}
+                  {selected === null ? "Skip →" : "Next Question →"}
                 </button>
+              )}
+              {isLastQuestion && (
+                <button onClick={attemptFinish} className="rcp-next-btn" style={{ background: "linear-gradient(135deg, #d4af37, #b8860b)", border: "none", color: "#0a0a1a", padding: "12px 32px", borderRadius: 10, fontSize: 15, fontWeight: "bold", cursor: "pointer" }}>
+                  Finish &amp; View Results →
+                </button>
+              )}
+            </div>
+
+            {confirmFinish && (
+              <div role="alert" style={{ marginTop: 16, background: "rgba(240,136,62,0.1)", border: "1px solid rgba(240,136,62,0.45)", borderRadius: 12, padding: "16px 20px" }}>
+                <div style={{ fontSize: 14, color: "#f0883e", fontWeight: 600, marginBottom: 6 }}>
+                  {unansweredCount} question{unansweredCount === 1 ? "" : "s"} still unanswered
+                </div>
+                <div style={{ fontSize: 13, color: "#c6c6cd", lineHeight: 1.6, marginBottom: 12 }}>
+                  Unanswered questions are marked incorrect. There is no penalty for guessing.
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button onClick={goToFirstUnanswered} style={{ background: "rgba(233,193,118,0.15)", border: "1px solid rgba(233,193,118,0.4)", color: "#e9c176", padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                    Go to the first one
+                  </button>
+                  <button onClick={finishExam} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.2)", color: "#c6c6cd", padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                    Submit anyway
+                  </button>
+                  <button onClick={() => setConfirmFinish(false)} style={{ background: "transparent", border: "none", color: "#8a94ad", padding: "10px 12px", fontSize: 13, cursor: "pointer" }}>
+                    Keep working
+                  </button>
+                </div>
               </div>
             )}
+
+            {/* Question navigator */}
+            <div style={{ marginTop: 28, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 18px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                <span style={{ fontSize: 12, color: "#9090b0", letterSpacing: 1, textTransform: "uppercase", fontWeight: 600 }}>
+                  {answeredCount} of {examQuestions.length} answered
+                </span>
+                {!isLastQuestion && (
+                  <button onClick={attemptFinish} style={{ background: "transparent", border: "1px solid rgba(233,193,118,0.35)", color: "#e9c176", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    Finish early
+                  </button>
+                )}
+              </div>
+              <div className="rcp-navigator" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {examQuestions.map((_, i) => {
+                  const isCurrent = i === currentIdx;
+                  const isAnswered = answers[i] !== null && answers[i] !== undefined;
+                  const isMarked = Boolean(flagged[i]);
+                  let background = "rgba(255,255,255,0.05)";
+                  let borderColor = "rgba(255,255,255,0.12)";
+                  let color = "#8a94ad";
+                  if (isAnswered) { background = "rgba(212,175,55,0.16)"; borderColor = "rgba(212,175,55,0.45)"; color = "#e9c176"; }
+                  if (isMarked) { borderColor = "#f0883e"; color = "#f0883e"; }
+                  if (isCurrent) { background = "#e9c176"; borderColor = "#e9c176"; color = "#412d00"; }
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => goToQuestion(i)}
+                      aria-current={isCurrent ? "true" : undefined}
+                      aria-label={`Question ${i + 1}${isAnswered ? ", answered" : ", not answered"}${isMarked ? ", flagged" : ""}`}
+                      style={{ width: 34, height: 34, borderRadius: 8, background, border: `1px solid ${borderColor}`, color, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1620,7 +1757,7 @@ export default function RE5Exam() {
                       <span style={{ fontSize: 12, color: r.correct ? "#48c774" : "#ff6b6b" }}>{r.correct ? "✓ Correct" : "✗ Incorrect"}</span>
                     </div>
                     <p style={{ margin: "0 0 12px", fontSize: 15 }}>{r.q.q}</p>
-                    {!r.correct && <div style={{ fontSize: 13, color: "#ff9090", marginBottom: 4 }}>Your answer: {r.q.options[r.selected]}</div>}
+                    {!r.correct && <div style={{ fontSize: 13, color: "#ff9090", marginBottom: 4 }}>Your answer: {r.selected === null ? "not answered" : r.q.options[r.selected]}</div>}
                     <div style={{ fontSize: 13, color: "#48c774", marginBottom: 12 }}>✓ Correct: {r.q.options[r.q.answer]}</div>
                     <ExplanationPanel question={r.q} selectedAnswer={r.selected} />
                   </div>
