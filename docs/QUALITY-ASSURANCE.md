@@ -286,7 +286,25 @@ book your FSCA RE5 examination" over content that is explicitly unreviewed
 (section 4) and was, at the time, gameable to 80%. It now reports the result
 against the pass mark and states that the material awaits compliance sign-off.
 
-### 6.10 Still outstanding
+### 6.10 A missing environment variable blanked the site (fixed)
+
+`src/integrations/supabase/client.ts` calls `createClient` at module scope,
+which throws when `VITE_SUPABASE_URL` or `VITE_SUPABASE_PUBLISHABLE_KEY` is
+unset. App imports it transitively, so the throw landed during module
+evaluation — before React rendered and outside any error boundary. One
+mistyped variable in the Vercel dashboard would take the whole platform down
+with a blank white page and no visible cause.
+
+`src/main.tsx` now checks the required variables before loading the app and
+renders `ConfigurationError` when any are missing: an apology for visitors,
+a reassurance that their locally-stored progress is intact, and the names of
+the missing variables for whoever maintains the deployment. App is imported
+dynamically so the Supabase client is never evaluated before that check. The
+generated client file itself is untouched, since it carries a "do not edit"
+header; as a side effect the entry bundle drops from 1.4 MB to 146 kB, with
+the app in a lazily-loaded chunk.
+
+### 6.11 Still outstanding
 
 - The SME review in section 4 remains the gate on calling any of this
   exam-grade. Section 6.6 suggests it will find real defects.
@@ -294,9 +312,5 @@ against the pass mark and states that the material awaits compliance sign-off.
   prompt of 61 characters. The live RE5 leans heavily on scenarios and
   combination items. This is a content-authoring job, not a code fix.
 - Levels for questions 1-250 are estimated, not tagged.
-- `src/integrations/supabase/client.ts` throws at module scope when
-  `VITE_SUPABASE_URL` is unset, before React renders — so a missing or
-  mistyped Vercel environment variable takes the whole site down with a blank
-  page that no error boundary can catch.
 - Regulatory figures drift. The 6-monthly syllabus-drift review in section 5
   still applies.
