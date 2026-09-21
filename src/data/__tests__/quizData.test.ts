@@ -13,7 +13,14 @@
  */
 import { describe, it, expect } from "vitest";
 import { questions as mockExamQuestions, explanations as mockExamExplanations } from "@/components/RE5Exam";
-import { getMetadata, FSCA_DISTRIBUTION } from "@/data/questionMetadata";
+import {
+  getMetadata,
+  FSCA_DISTRIBUTION,
+  buildSmartExam,
+  servableQuestions,
+  OFF_SYLLABUS_TOPICS,
+  QUARANTINED_IDS,
+} from "@/data/questionMetadata";
 import { re5Task4Lessons } from "@/data/re5Task4";
 import { re5OtherTaskLessons } from "@/data/re5OtherTasks";
 import { re5SupplementaryLessons } from "@/data/re5Supplementary";
@@ -109,20 +116,70 @@ describe("RE5 mock-exam bank", () => {
     }
   });
 
-  it("metadata resolves for every question and the bank can fill the FSCA 50-question distribution", () => {
+  it("resolves metadata for every question and keeps the FSCA distribution fillable", () => {
     const byLevel: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
     for (const q of mock) {
       const meta = getMetadata(q);
       expect([1, 2, 3, 4], `Q${q.id} level`).toContain(meta.complexityLevel);
-      expect(meta.taskId, `Q${q.id} taskId`).toBeGreaterThanOrEqual(1);
-      expect(meta.taskId, `Q${q.id} taskId`).toBeLessThanOrEqual(8);
-      byLevel[meta.complexityLevel]++;
+      expect(["tagged", "estimated"], `Q${q.id} level source`).toContain(meta.levelSource);
+
+      if (meta.inSyllabus) {
+        expect(meta.taskId, `Q${q.id} taskId`).toBeGreaterThanOrEqual(1);
+        expect(meta.taskId, `Q${q.id} taskId`).toBeLessThanOrEqual(8);
+      } else {
+        // Off-syllabus items must resolve to no task rather than silently
+        // becoming Task 1 — that fallback hid 110 questions inside Task 1.
+        expect(meta.taskId, `Q${q.id} is off-syllabus and must have no task`).toBeNull();
+      }
     }
+
+    // The distribution has to be fillable from what a candidate can actually be
+    // served, not from the whole file.
+    for (const q of servableQuestions(mock)) byLevel[getMetadata(q).complexityLevel]++;
     for (const [level, need] of Object.entries(FSCA_DISTRIBUTION)) {
       expect(
         byLevel[Number(level)],
-        `bank cannot fill FSCA need of ${need} at level ${level}`,
+        `servable pool cannot fill FSCA need of ${need} at level ${level}`,
       ).toBeGreaterThanOrEqual(need as number);
+    }
+  });
+
+  it("never serves an off-syllabus or quarantined question", () => {
+    for (const q of servableQuestions(mock)) {
+      expect(OFF_SYLLABUS_TOPICS.has(q.topic), `Q${q.id} topic "${q.topic}"`).toBe(false);
+      expect(QUARANTINED_IDS.has(q.id), `Q${q.id} is quarantined`).toBe(false);
+    }
+    for (let run = 0; run < 25; run++) {
+      for (const q of buildSmartExam(mock) as MockQuestion[]) {
+        expect(getMetadata(q).inSyllabus, `Q${q.id} reached a mock exam`).toBe(true);
+        expect(QUARANTINED_IDS.has(q.id), `Q${q.id} reached a mock exam`).toBe(false);
+      }
+    }
+  });
+
+  it("represents all 8 FSCA tasks", () => {
+    // The per-question "taskId is between 1 and 8" check passes vacuously
+    // because getMetadata falls back to task 1 for an unmapped topic. This
+    // asserts the thing that actually matters: no task is empty. Task 3 was,
+    // for the whole life of the bank — every Key Individual question sat
+    // under a topic label that mapped elsewhere.
+    const perTask = new Map<number, number>();
+    for (const q of mock) {
+      const { taskId } = getMetadata(q);
+      perTask.set(taskId, (perTask.get(taskId) ?? 0) + 1);
+    }
+    for (const task of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      expect(perTask.get(task) ?? 0, `task ${task} has no questions`).toBeGreaterThan(0);
+    }
+  });
+
+  it("builds a mock exam that covers every task, every time", () => {
+    for (let run = 0; run < 50; run++) {
+      const exam = buildSmartExam(mock);
+      expect(exam).toHaveLength(50);
+      const covered = new Set(exam.map((q: MockQuestion) => getMetadata(q).taskId));
+      const missing = [1, 2, 3, 4, 5, 6, 7, 8].filter((t) => !covered.has(t));
+      expect(missing, `run ${run} missed task(s) ${missing.join(", ")}`).toEqual([]);
     }
   });
 

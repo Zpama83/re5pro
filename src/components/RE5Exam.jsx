@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { getMetadata, buildSmartExam, TASK_LABELS, LEVEL_LABELS, FSCA_DISTRIBUTION } from "@/data/questionMetadata";
+import { getMetadata, buildSmartExam, TASK_LABELS, LEVEL_LABELS, FSCA_DISTRIBUTION, servableQuestions, OFF_SYLLABUS_TOPICS, QUARANTINED_IDS } from "@/data/questionMetadata";
+import { randomiseSession, shuffle } from "@/lib/examOptions";
 
 // --- Cross-session progress persistence (localStorage) ---
 const HISTORY_KEY = 're5pro-history';
@@ -832,7 +833,19 @@ export const explanations = {
   325: { correct: "Section 14 (records) and section 16 (complaints) require an integrated, evidenced and accessible process. Concurrent remediation across disclosures, complaints routing, retraining, documentation, and a section 14 debarment assessment is the standard expected when systemic gaps are found.", wrong: { 1: "Waiting for the on-site inspection breaches the FSP's proactive oversight duties.", 2: "Blanket refunds without investigation breach record-keeping and root-cause duties.", 3: "Reconstructing recordings is an integrity breach." } },
 };
 
-const TOPICS = ["All Topics", ...Array.from(new Set(questions.map(q => q.topic)))];
+// Anything a candidate can actually be served: RE5 syllabus only, minus the
+// items withdrawn pending compliance review.
+const SERVABLE = servableQuestions(questions);
+const ALL_TOPICS_OPTION = "All RE5 Topics";
+const allTopicNames = Array.from(new Set(questions.map(q => q.topic)));
+const RE5_TOPICS = allTopicNames.filter(t => !OFF_SYLLABUS_TOPICS.has(t));
+const GENERAL_TOPICS = allTopicNames.filter(t => OFF_SYLLABUS_TOPICS.has(t));
+const TOPICS = [ALL_TOPICS_OPTION, ...RE5_TOPICS, ...GENERAL_TOPICS];
+// Quarantined items are never drawn, whatever topic is selected.
+const questionsForTopic = topic =>
+  topic === ALL_TOPICS_OPTION
+    ? SERVABLE
+    : questions.filter(q => q.topic === topic && !QUARANTINED_IDS.has(q.id));
 
 function ProgressWidget({ history, weakTaskIds, onTrainWeak }) {
   const recent = [...history].slice(0, 10).reverse();
@@ -1005,7 +1018,9 @@ function ReadinessWidget({ history, onFinalExam, onReviseMissed }) {
 
 function ExplanationPanel({ question, selectedAnswer }) {
   const isCorrect = selectedAnswer === question.answer;
-  const exp = explanations[question.id];
+  // A session's questions carry their own remapped explanation, because the
+  // options were permuted when the session was built.
+  const exp = question.explanation || explanations[question.id];
   if (!exp) return null;
 
   return (
@@ -1052,7 +1067,7 @@ function ExplanationPanel({ question, selectedAnswer }) {
 
 export default function RE5Exam() {
   const [mode, setMode] = useState("home");
-  const [selectedTopic, setSelectedTopic] = useState("All Topics");
+  const [selectedTopic, setSelectedTopic] = useState(ALL_TOPICS_OPTION);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selected, setSelected] = useState(null);
   const [answered, setAnswered] = useState(false);
@@ -1068,9 +1083,12 @@ export default function RE5Exam() {
   const [weakTopicMode, setWeakTopicMode] = useState(false);
   const [missedMode, setMissedMode] = useState(false);
   const [finalExamMode, setFinalExamMode] = useState(false);
+  // Which kind of session this is. Recorded on the history entry so the
+  // progress widgets can tell a full mock from a weak-task drill.
+  const [examType, setExamType] = useState("practice");
   const timerRef = useRef(null);
 
-  const filtered = selectedTopic === "All Topics" ? questions : questions.filter(q => q.topic === selectedTopic);
+  const filtered = questionsForTopic(selectedTopic);
 
   useEffect(() => {
     if (timerActive && timeLeft > 0) {
@@ -1087,6 +1105,9 @@ export default function RE5Exam() {
     const ts = {};
     results.forEach(r => {
       const meta = getMetadata(r.q);
+      // Off-syllabus questions map to no FSCA task, so they must not skew
+      // the task scores that drive weak-area training and readiness.
+      if (meta.taskId === null) return;
       if (!ts[meta.taskId]) ts[meta.taskId] = { correct: 0, total: 0 };
       ts[meta.taskId].total += 1;
       if (r.correct) ts[meta.taskId].correct += 1;
@@ -1110,6 +1131,13 @@ export default function RE5Exam() {
     let pool;
     setMissedMode(reviseMissed);
     setFinalExamMode(finalExam);
+    setExamType(
+      finalExam ? "final"
+        : reviseMissed ? "missed"
+          : trainWeak ? "weak-task"
+            : smartMode ? "smart"
+              : "practice",
+    );
     if (finalExam) {
       pool = buildSmartExam(questions);
       setWeakTopicMode(false);
@@ -1119,20 +1147,22 @@ export default function RE5Exam() {
       const missedQs = missedIds.map(id => questions.find(q => q.id === id)).filter(Boolean);
       pool = missedQs.length > 0
         ? missedQs.slice(0, Math.min(numQuestions, missedQs.length))
-        : [...filtered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, filtered.length));
+        : shuffle(filtered).slice(0, Math.min(numQuestions, filtered.length));
     } else if (trainWeak) {
       setWeakTopicMode(true);
       const weakIds = getWeakTaskIds(history);
       const weakFiltered = weakIds.length > 0
         ? filtered.filter(q => weakIds.includes(getMetadata(q).taskId))
         : filtered;
-      pool = [...weakFiltered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, weakFiltered.length));
+      pool = shuffle(weakFiltered).slice(0, Math.min(numQuestions, weakFiltered.length));
     } else if (smartMode) {
       pool = buildSmartExam(questions);
     } else {
-      pool = [...filtered].sort(() => Math.random() - 0.5).slice(0, Math.min(numQuestions, filtered.length));
+      pool = shuffle(filtered).slice(0, Math.min(numQuestions, filtered.length));
     }
-    setExamQuestions(pool);
+    // Permute each question's options so the bank's heavy bias toward option B
+    // cannot be exploited or learned. Answer key and explanation move with them.
+    setExamQuestions(randomiseSession(pool, explanations));
     setCurrentIdx(0);
     setSelected(null);
     setAnswered(false);
@@ -1175,12 +1205,14 @@ export default function RE5Exam() {
   const secs = (timeLeft || 0) % 60;
 
   const currentQ = examQuestions[currentIdx];
-  const topicCounts = TOPICS.slice(1).map(t => ({ topic: t, count: questions.filter(q => q.topic === t).length }));
+  const topicCounts = RE5_TOPICS.map(t => ({ topic: t, count: questionsForTopic(t).length }));
 
   // Score by topic, task, and complexity for results
   const topicScores = {};
   const taskScores = {};
   const levelScores = {};
+  const offSyllabusScore = { correct: 0, total: 0 };
+  let estimatedLevelCount = 0;
   if (mode === "results") {
     results.forEach(r => {
       if (!topicScores[r.q.topic]) topicScores[r.q.topic] = { correct: 0, total: 0 };
@@ -1188,13 +1220,19 @@ export default function RE5Exam() {
       if (r.correct) topicScores[r.q.topic].correct += 1;
 
       const meta = getMetadata(r.q);
-      if (!taskScores[meta.taskId]) taskScores[meta.taskId] = { correct: 0, total: 0 };
-      taskScores[meta.taskId].total += 1;
-      if (r.correct) taskScores[meta.taskId].correct += 1;
+      if (meta.taskId === null) {
+        offSyllabusScore.total += 1;
+        if (r.correct) offSyllabusScore.correct += 1;
+      } else {
+        if (!taskScores[meta.taskId]) taskScores[meta.taskId] = { correct: 0, total: 0 };
+        taskScores[meta.taskId].total += 1;
+        if (r.correct) taskScores[meta.taskId].correct += 1;
+      }
 
       if (!levelScores[meta.complexityLevel]) levelScores[meta.complexityLevel] = { correct: 0, total: 0 };
       levelScores[meta.complexityLevel].total += 1;
       if (r.correct) levelScores[meta.complexityLevel].correct += 1;
+      if (meta.levelSource === "estimated") estimatedLevelCount += 1;
     });
   }
 
@@ -1270,11 +1308,12 @@ export default function RE5Exam() {
             {/* Metrics bento */}
             <section style={{ marginBottom: 64 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
-                {[{ label: "Total Questions", val: questions.length, icon: "❓", color: "#e9c176" }, { label: "Topics Covered", val: topicCounts.length, icon: "📚", color: "#4edea3" }, { label: "Pass Mark", val: "66%", icon: "🎯", color: "#e9c176" }].map((s, i) => (
+                {[{ label: "RE5 Questions", val: SERVABLE.length, icon: "❓", color: "#e9c176", note: `+${questions.length - SERVABLE.length} general / under review` }, { label: "FSCA Tasks Covered", val: 8, icon: "📚", color: "#4edea3", note: `across ${RE5_TOPICS.length} topics` }, { label: "Pass Mark", val: "66%", icon: "🎯", color: "#e9c176", note: "33 of 50" }].map((s, i) => (
                   <div key={i} className="rcp-glass rcp-metric-card" style={{ padding: 32, borderRadius: 12, textAlign: "center", transition: "all 0.3s" }}>
                     <div style={{ fontSize: 32, marginBottom: 16, color: s.color }}>{s.icon}</div>
                     <div className="rcp-headline rcp-metric-val" style={{ fontSize: 48, fontWeight: 700, color: "#d3e4fe", lineHeight: 1 }}>{s.val}</div>
                     <div style={{ fontSize: 12, color: "#c6c6cd", marginTop: 8, letterSpacing: 2, textTransform: "uppercase", fontWeight: 600 }}>{s.label}</div>
+                    {s.note && <div style={{ fontSize: 11, color: "#8a94ad", marginTop: 6 }}>{s.note}</div>}
                   </div>
                 ))}
               </div>
@@ -1312,7 +1351,7 @@ export default function RE5Exam() {
                       <div style={{ opacity: smartMode ? 0.4 : 1, pointerEvents: smartMode ? "none" : "auto" }}>
                         <label style={{ display: "block", fontSize: 12, color: "#c6c6cd", letterSpacing: 2, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, paddingLeft: 4 }}>Topic Filter</label>
                         <select value={selectedTopic} onChange={e => setSelectedTopic(e.target.value)} style={{ width: "100%", background: "#0b1c30", border: "1px solid #45464d", color: "#d3e4fe", padding: "14px 16px", borderRadius: 12, fontSize: 15, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>
-                          {TOPICS.map(t => <option key={t} value={t}>{t} {t !== "All Topics" ? `(${questions.filter(q => q.topic === t).length} questions)` : `(${questions.length} questions)`}</option>)}
+                          {TOPICS.map(t => <option key={t} value={t}>{t} {`(${questionsForTopic(t).length} questions)`}{OFF_SYLLABUS_TOPICS.has(t) ? " — not in the RE5 syllabus" : ""}</option>)}
                         </select>
                       </div>
 
@@ -1456,10 +1495,14 @@ export default function RE5Exam() {
                 <div style={{ fontSize: 14, color: "#9090b0", marginBottom: 24 }}>50 Questions | 120 Minutes | FSCA Distribution</div>
                 <div style={{ fontSize: 72, marginBottom: 12 }}>{passed ? "🏆" : "📚"}</div>
                 <div style={{ fontSize: 42, fontWeight: 800, color: passed ? "#48c774" : "#ff6b6b", marginBottom: 8 }}>{pct}%</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: passed ? "#48c774" : "#ff6b6b", marginBottom: 16 }}>{passed ? "PASSED — Exam Ready!" : "Not Yet — Keep Preparing"}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: passed ? "#48c774" : "#ff6b6b", marginBottom: 16 }}>{passed ? "Above the pass mark on this simulation" : "Below the pass mark — keep preparing"}</div>
                 <div style={{ fontSize: 15, color: "#c6c6cd", marginBottom: 8 }}>{score} of {examQuestions.length} correct | Pass mark: 66%</div>
                 <div style={{ fontSize: 13, color: "#9090b0" }}>Completed {new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })} at {new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</div>
-                {passed && <div style={{ marginTop: 20, fontSize: 14, color: "#48c774", fontWeight: 600 }}>You are ready to book your FSCA RE5 examination.</div>}
+                <div style={{ marginTop: 20, fontSize: 12, color: "#8a94ad", lineHeight: 1.7, maxWidth: 560, marginLeft: "auto", marginRight: "auto" }}>
+                  This is a practice simulation built from study material that has not yet
+                  been signed off by a compliance officer. A result here is a guide to your
+                  revision, not a prediction of the official FSCA examination.
+                </div>
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg, #d4af37, #b8860b, #d4af37)" }} />
               </div>
             )}
@@ -1507,8 +1550,19 @@ export default function RE5Exam() {
                 </div>
               </div>
 
+              {offSyllabusScore.total > 0 && (
+                <div style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#8a94ad", marginBottom: 18 }}>
+                  {offSyllabusScore.correct}/{offSyllabusScore.total} correct on general financial-services questions, which sit outside the RE5 syllabus and are not counted towards any FSCA task.
+                </div>
+              )}
+
               <div>
                 <div style={{ fontSize: 13, color: "#c0c0d0", marginBottom: 8, fontWeight: "bold" }}>By Complexity (Bloom)</div>
+                {estimatedLevelCount > 0 && (
+                  <div style={{ fontSize: 11, color: "#8a94ad", marginBottom: 8 }}>
+                    {estimatedLevelCount} of {results.length} questions carry an <strong style={{ color: "#c6c6cd" }}>estimated</strong> complexity level, inferred from the question&apos;s form pending hand-tagging.
+                  </div>
+                )}
                 <div className="rcp-bloom-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                   {[1, 2, 3, 4].map(level => {
                     const data = levelScores[level];
